@@ -38,6 +38,7 @@ public class PaperListener extends BukkitListener {
     @Override
     public void register() {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ClaimListener(plugin), plugin);
         setInspectorCallbacks();
     }
 
@@ -66,5 +67,4 @@ public class PaperListener extends BukkitListener {
             ));
         }
     }
-
 }

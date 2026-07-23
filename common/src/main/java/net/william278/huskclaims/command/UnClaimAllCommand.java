@@ -36,7 +36,7 @@ public class UnClaimAllCommand extends OnlineUserCommand implements UserListTabC
 
     protected UnClaimAllCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("unclaimall", "abandonallclaims"),
+                List.of("unclaimall", "abandonallclaims", "abandonartodos", "abandonartodosterrenos"),
                 "[player] [confirm]",
                 plugin
         );

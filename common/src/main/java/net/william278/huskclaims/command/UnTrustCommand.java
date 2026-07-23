@@ -42,7 +42,7 @@ public class UnTrustCommand extends InClaimCommand implements TabCompletable {
 
     protected UnTrustCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("untrust"),
+                List.of("untrust", "desconfiar"),
                 getUsageText(plugin.getSettings()),
                 TrustLevel.Privilege.MANAGE_TRUSTEES,
                 plugin

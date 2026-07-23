@@ -87,8 +87,7 @@ public interface ClaimHandler extends Handler {
             // Send an entry message
             if (getPlugin().getSettings().getClaims().isSendEntryMessage()
                     && !tc.isChildClaim() && !fc.isChildClaim()) {
-                getPlugin().getLocales().getLocale("claim_entered", tc.getOwnerName(world, getPlugin()))
-                        .ifPresent(online::sendMessage);
+                online.sendTitle("&a&l⛏ Zona Protegida", "&7Terreno de &a" + tc.getOwnerName(world, getPlugin()), 10, 20, 10);
             }
             return false;
         } else if (toClaim.isPresent()) {
@@ -102,8 +101,7 @@ public interface ClaimHandler extends Handler {
 
             // Send an entry message
             if (getPlugin().getSettings().getClaims().isSendEntryMessage() && !tc.isChildClaim()) {
-                getPlugin().getLocales().getLocale("claim_entered", tc.getOwnerName(world, getPlugin()))
-                        .ifPresent(online::sendMessage);
+                online.sendTitle("&a&l⛏ Zona Protegida", "&7Terreno de &a" + tc.getOwnerName(world, getPlugin()), 10, 20, 10);
             }
         } else if (fromClaim.isPresent()) {
             // Handle claim -> wilderness movement
@@ -114,8 +112,7 @@ public interface ClaimHandler extends Handler {
 
             // Send an exit message
             if (getPlugin().getSettings().getClaims().isSendExitMessage() && !fc.isChildClaim()) {
-                getPlugin().getLocales().getLocale("claim_exited", fc.getOwnerName(world, getPlugin()))
-                        .ifPresent(online::sendMessage);
+                online.sendTitle("&c⚠ Zona Desprotegida", "&7Você saiu de um terreno protegido.", 10, 20, 10);
             }
         }
         return false;

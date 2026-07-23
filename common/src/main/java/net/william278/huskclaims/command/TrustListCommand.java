@@ -40,7 +40,7 @@ public class TrustListCommand extends InClaimCommand {
 
     protected TrustListCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("trustlist", "claiminfo"),
+                List.of("trustlist", "claiminfo", "confianças", "lista"),
                 "",
                 TrustLevel.Privilege.MANAGE_TRUSTEES,
                 plugin

@@ -29,16 +29,15 @@ import net.william278.cloplib.operation.Operation;
 import net.william278.cloplib.operation.OperationType;
 import net.william278.huskclaims.BukkitHuskClaims;
 import net.william278.huskclaims.HuskClaims;
+import net.william278.huskclaims.api.HuskClaimsAPI;
+import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.trust.TrustLevel;
 import net.william278.huskclaims.user.OnlineUser;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -140,7 +139,26 @@ public class BukkitPlaceholderAPIHook extends Hook {
             ))),
             CAN_INTERACT((plugin, user) -> formatBoolean(plugin.cancelOperation(
                     Operation.of(user, OperationType.BLOCK_INTERACT, user.getPosition(), true)
-            )));
+            ))),
+            TAG((plugin, user) -> {
+                Optional<Claim> claimOptional = plugin.getClaimAt(user.getPosition());
+
+                if (claimOptional.isEmpty()) {
+                    return "...";
+                }
+
+                Claim claim = claimOptional.get();
+
+                if (claim.getOwner().map(owner -> owner.equals(user.getUuid())).orElse(false)) {
+                    return "§f⌓";
+                }
+
+                Optional<TrustLevel> effectiveTrust = claim.getEffectiveTrustLevel(user, plugin);
+                if (effectiveTrust.isPresent()) {
+                    return "§f⌕";
+                }
+                return "§f⌮";
+            });
 
             private static final String IDENTIFIER = "huskclaims";
             private static final Map<String, Placeholder> IDENTIFIER_MAP = Arrays.stream(values())

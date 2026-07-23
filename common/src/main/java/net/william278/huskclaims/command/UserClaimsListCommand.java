@@ -44,7 +44,7 @@ public class UserClaimsListCommand extends ClaimsListCommand implements UserList
 
     protected UserClaimsListCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("claimslist", "claims"),
+                List.of("claimslist", "claims", "terrenos", "terrenotp"),
                 "[player] [sort_by] [ascending|descending] [page]",
                 plugin
         );

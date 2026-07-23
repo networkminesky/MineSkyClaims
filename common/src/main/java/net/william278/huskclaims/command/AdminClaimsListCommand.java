@@ -38,7 +38,7 @@ public class AdminClaimsListCommand extends ClaimsListCommand implements GlobalC
 
     protected AdminClaimsListCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("adminclaimslist", "adminclaims"),
+                List.of("adminclaimslist", "adminclaims", "adminterrenos"),
                 "[sort_by] [ascending|descending] [page]",
                 plugin
         );

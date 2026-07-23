@@ -22,6 +22,9 @@ package net.william278.huskclaims.user;
 import de.themoep.minedown.adventure.MineDown;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.title.Title;
+import net.kyori.adventure.util.Ticks;
 import net.william278.cloplib.listener.InspectorCallbackProvider;
 import net.william278.cloplib.operation.OperationUser;
 import net.william278.huskclaims.HuskClaims;
@@ -73,6 +76,43 @@ public abstract class OnlineUser extends User implements OperationUser, CommandU
 
     public void sendMessage(@NotNull MineDown mineDown) {
         sendMessage(mineDown.toComponent());
+    }
+
+    public void sendTitle(@NotNull Component title, @NotNull Component subtitle) {
+        getAudience().showTitle(net.kyori.adventure.title.Title.title(title, subtitle));
+    }
+
+    public void sendTitle(@NotNull MineDown title, @NotNull MineDown subtitle) {
+        sendTitle(title.toComponent(), subtitle.toComponent());
+    }
+
+    public void sendTitle(@NotNull net.kyori.adventure.title.Title title) {
+        getAudience().showTitle(title);
+    }
+
+    /**
+     * Envia um título e subtítulo com tempos personalizados de exibição (em ticks).
+     *
+     * @param title        Componente do título
+     * @param subtitle     Componente do subtítulo
+     * @param fadeInTicks  Tempo de entrada (em ticks)
+     * @param stayTicks    Tempo de permanência na tela (em ticks)
+     * @param fadeOutTicks Tempo de saída (em ticks)
+     */
+    public void sendTitle(@NotNull String title, @NotNull String subtitle, int fadeInTicks, int stayTicks, int fadeOutTicks) {
+        LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
+
+        Title.Times times = Title.Times.times(
+                Ticks.duration(fadeInTicks),
+                Ticks.duration(stayTicks),
+                Ticks.duration(fadeOutTicks)
+        );
+
+        getAudience().showTitle(Title.title(
+                serializer.deserialize(title),
+                serializer.deserialize(subtitle),
+                times
+        ));
     }
 
     public abstract void sendPluginMessage(@NotNull String channel, byte[] message);
