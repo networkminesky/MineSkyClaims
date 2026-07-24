@@ -6,4 +6,4 @@ before_install:
   - sdk use java 21.0.11-tem
 
 install:
-  - ./gradlew build publishToMavenLocal --refresh-dependencies
+  - ./gradlew publishToMavenLocal -x remapSourcesJar -x test --refresh-dependencies
