@@ -34,7 +34,7 @@ import java.util.*;
 public class ClaimBanCommand extends InClaimCommand implements UserListTabCompletable {
 
     protected ClaimBanCommand(@NotNull HuskClaims plugin) {
-        super(List.of("claimban"), "<ban|unban|list> [username]", TrustLevel.Privilege.MANAGE_BANS, plugin);
+        super(List.of("claimban", "bfc"), "<ban|unban|list> [username]", TrustLevel.Privilege.MANAGE_BANS, plugin);
     }
 
     @Override

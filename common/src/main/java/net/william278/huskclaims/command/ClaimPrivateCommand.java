@@ -32,7 +32,7 @@ public class ClaimPrivateCommand extends InClaimCommand implements ToggleTabComp
 
     protected ClaimPrivateCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("claimprivate"),
+                List.of("claimprivate", "terrenoprivar", "privar"),
                 "[on|off]",
                 TrustLevel.Privilege.MAKE_PRIVATE,
                 plugin

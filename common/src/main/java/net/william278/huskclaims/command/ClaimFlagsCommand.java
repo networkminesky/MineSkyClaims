@@ -41,7 +41,7 @@ public class ClaimFlagsCommand extends OnlineUserCommand implements TabCompletab
     private final TrustLevel.Privilege MANAGE_FLAGS = TrustLevel.Privilege.MANAGE_OPERATION_GROUPS;
 
     public ClaimFlagsCommand(@NotNull HuskClaims plugin) {
-        super(List.of("claimflags"), "[set|list]", plugin);
+        super(List.of("claimflags", "terrenopropriedades", "propriedades"), "[set|list]", plugin);
 
         this.setOperatorCommand(true);
         this.addAdditionalPermissions(Map.of(

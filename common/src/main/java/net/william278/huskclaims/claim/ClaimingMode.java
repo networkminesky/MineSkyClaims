@@ -37,7 +37,7 @@ import java.util.Locale;
 @AllArgsConstructor
 public enum ClaimingMode {
     CLAIMS(List.of("claim"), "huskclaims.claim", false),
-    CHILD_CLAIMS(List.of("childclaim", "subdivideclaims"), "huskclaims.child_claim", false),
+    CHILD_CLAIMS(List.of("childclaim", "subdivideclaims", "dividirterreno", "subterrenos", "dividir"), "huskclaims.child_claim", false),
     ADMIN_CLAIMS(List.of("adminclaim"), "huskclaims.admin_claim", true);
 
     // Command aliases
