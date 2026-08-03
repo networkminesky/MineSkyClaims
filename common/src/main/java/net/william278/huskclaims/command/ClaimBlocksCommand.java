@@ -40,7 +40,7 @@ public class ClaimBlocksCommand extends Command implements UserListTabCompletabl
 
     protected ClaimBlocksCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("claimblocks", "adjustclaimblocks", "blcoos", "blocosterreno"),
+                List.of("claimblocks", "adjustclaimblocks", "blocos", "blocosterreno"),
                 "[user] [<set|add|remove|gift> <amount>]",
                 plugin
         );
