@@ -39,6 +39,7 @@ public class PaperListener extends BukkitListener {
     public void register() {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         plugin.getServer().getPluginManager().registerEvents(new ClaimListener(plugin), plugin);
+        new VipClaimBlocksListener(plugin).register();
         setInspectorCallbacks();
     }
 

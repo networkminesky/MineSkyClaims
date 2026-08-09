@@ -2,15 +2,23 @@ plugins {
     id 'xyz.jpenilla.run-paper' version '2.3.1'
 }
 
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+}
+
 dependencies {
     implementation project(':bukkit')
     compileOnly project(':common')
 
-    compileOnly 'io.papermc.paper:paper-api:1.19.4-R0.1-SNAPSHOT'
+    compileOnly 'io.papermc.paper:paper-api:26.1.2.build.+'
 
     compileOnly 'org.jetbrains:annotations:26.0.2'
     compileOnly 'org.projectlombok:lombok:1.18.38'
     compileOnly 'net.william278.cloplib:cloplib-bukkit:2.0.12'
+    compileOnly 'net.luckperms:api:5.5'
 
     annotationProcessor 'org.projectlombok:lombok:1.18.38'
 }

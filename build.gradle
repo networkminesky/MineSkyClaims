@@ -66,8 +66,17 @@ allprojects {
     apply plugin: 'dev.yumi.gradle.licenser'
     apply plugin: 'java'
 
-    compileJava.options.encoding = 'UTF-8'
-    compileJava.options.release.set 21
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release.set(25)
+    }
+
     javadoc.options.encoding = 'UTF-8'
     javadoc.options.addStringOption('Xdoclint:none', '-quiet')
 
@@ -130,7 +139,14 @@ subprojects {
     // Fabric-specific configuration
     if (project.parent?.name?.equals('fabric')) {
         apply plugin: 'dev.architectury.loom'
-        compileJava.options.release.set 21
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(25)
+            }
+        }
+        tasks.withType(JavaCompile).configureEach {
+            options.release.set(25)
+        }
         version += "+mc.${project.name}"
     }
 
