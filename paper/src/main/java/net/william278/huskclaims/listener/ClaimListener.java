@@ -20,6 +20,7 @@
 package net.william278.huskclaims.listener;
 
 import net.william278.huskclaims.BukkitHuskClaims;
+import net.william278.huskclaims.api.HuskClaimsAPI;
 import net.william278.huskclaims.claim.Region;
 import net.william278.huskclaims.event.BukkitCreateClaimEvent;
 import net.william278.huskclaims.event.BukkitDeleteClaimEvent;
@@ -29,6 +30,8 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.weather.LightningStrikeEvent;
 import org.bukkit.generator.structure.Structure;
 import org.bukkit.generator.structure.StructureType;
 import org.bukkit.util.StructureSearchResult;
@@ -99,5 +102,12 @@ public class ClaimListener extends BukkitListener {
         strongholdLoc.setY(location.getY());
 
         return location.distance(strongholdLoc) <= radius;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onLightningStrike(LightningStrikeEvent e) {
+        if (!HuskClaimsAPI.getInstance().isWorldClaimable(e.getWorld().getName())) {
+            e.setCancelled(false);
+        }
     }
 }
