@@ -156,7 +156,7 @@ public class VipClaimBlocksListener {
                         plugin.getLogger().info("Successfully added " + amount + " claim blocks to " + username + " (VIP).");
                         org.bukkit.entity.Player onlinePlayer = Bukkit.getPlayer(uuid);
                         if (onlinePlayer != null) {
-                            onlinePlayer.sendMessage("§e&lTerrenos &8» &aSeus blocos de terrenos bônus VIP foram adicionados! Novo total: " + newBalance);
+                            onlinePlayer.sendMessage("§e§lTerrenos §8» §aSeus blocos de terrenos bônus VIP foram adicionados! Novo total: " + newBalance);
                         }
                     }
             );
