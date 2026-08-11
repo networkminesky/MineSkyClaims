@@ -26,10 +26,17 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.event.EventBus;
 import net.luckperms.api.event.node.NodeAddEvent;
-import net.luckperms.api.node.NodeType;
-import net.luckperms.api.node.types.MetaNode;
+import net.luckperms.api.event.node.NodeRemoveEvent;
 import org.bukkit.Bukkit;
 
+import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Objects;
 import java.util.UUID;
 
 public class VipClaimBlocksListener {
@@ -46,9 +53,13 @@ public class VipClaimBlocksListener {
             return;
         }
 
+        setupDatabase();
+
         LuckPerms luckPerms = LuckPermsProvider.get();
         EventBus eventBus = luckPerms.getEventBus();
+
         eventBus.subscribe(plugin, NodeAddEvent.class, this::onNodeAdd);
+        eventBus.subscribe(plugin, NodeRemoveEvent.class, this::onNodeRemove);
     }
 
     private void onNodeAdd(NodeAddEvent event) {
@@ -56,130 +67,220 @@ public class VipClaimBlocksListener {
             return;
         }
 
-        net.luckperms.api.model.user.User lpUser = (net.luckperms.api.model.user.User) event.getTarget();
-        net.luckperms.api.node.Node addedNode = event.getNode();
-        String addedKey = addedNode.getKey().toLowerCase();
-
-        LuckPerms luckPerms = LuckPermsProvider.get();
-
-        boolean isGold = false;
-        boolean isDiamond = false;
-        boolean isNetherite = false;
-
-        if (addedKey.equals("mineskyclaims.vip.ouro")) {
-            isGold = true;
-        } else if (addedKey.equals("mineskyclaims.vip.diamante")) {
-            isDiamond = true;
-        } else if (addedKey.equals("mineskyclaims.vip.netherite")) {
-            isNetherite = true;
+        if (isVipRelatedNode(event.getNode())) {
+            net.luckperms.api.model.user.User lpUser = (net.luckperms.api.model.user.User) event.getTarget();
+            updateVipClaimBlocksDeferred(lpUser.getUniqueId(), lpUser.getUsername());
         }
-        else if (addedKey.startsWith("group.")) {
-            String groupName = addedKey.substring("group.".length());
-            net.luckperms.api.model.group.Group group = luckPerms.getGroupManager().getGroup(groupName);
-            if (group != null) {
-                isGold = group.getNodes().stream().anyMatch(n -> n.getKey().equalsIgnoreCase("mineskyclaims.vip.ouro"));
-                isDiamond = group.getNodes().stream().anyMatch(n -> n.getKey().equalsIgnoreCase("mineskyclaims.vip.diamante"));
-                isNetherite = group.getNodes().stream().anyMatch(n -> n.getKey().equalsIgnoreCase("mineskyclaims.vip.netherite"));
-            }
-        }
+    }
 
-        if (!isGold && !isDiamond && !isNetherite) {
+    private void onNodeRemove(NodeRemoveEvent event) {
+        if (!event.isUser()) {
             return;
         }
 
-        boolean goldReceived = lpUser.getNodes().stream()
-                .filter(n -> n.getType() == NodeType.META)
-                .map(n -> (MetaNode) n)
-                .anyMatch(n -> n.getMetaKey().equalsIgnoreCase("claims_gold_received"));
-
-        boolean diamondReceived = lpUser.getNodes().stream()
-                .filter(n -> n.getType() == NodeType.META)
-                .map(n -> (MetaNode) n)
-                .anyMatch(n -> n.getMetaKey().equalsIgnoreCase("claims_diamond_received"));
-
-        boolean netheriteReceived = lpUser.getNodes().stream()
-                .filter(n -> n.getType() == NodeType.META)
-                .map(n -> (MetaNode) n)
-                .anyMatch(n -> n.getMetaKey().equalsIgnoreCase("claims_netherite_received"));
-
-        long blocksToAdd = 0;
-        boolean setGoldMeta = false;
-        boolean setDiamondMeta = false;
-        boolean setNetheriteMeta = false;
-
-        if (isNetherite && !netheriteReceived) {
-            if (diamondReceived) {
-                blocksToAdd = 1500;
-            } else if (goldReceived) {
-                blocksToAdd = 2500;
-            } else {
-                blocksToAdd = 3000;
-            }
-            setGoldMeta = true;
-            setDiamondMeta = true;
-            setNetheriteMeta = true;
+        if (isVipRelatedNode(event.getNode())) {
+            net.luckperms.api.model.user.User lpUser = (net.luckperms.api.model.user.User) event.getTarget();
+            updateVipClaimBlocksDeferred(lpUser.getUniqueId(), lpUser.getUsername());
         }
-        else if (isDiamond && !diamondReceived) {
-            if (goldReceived) {
-                blocksToAdd = 1000;
-            } else {
-                blocksToAdd = 1500;
-            }
-            setGoldMeta = true;
-            setDiamondMeta = true;
-        }
-        else if (isGold && !goldReceived) {
-            blocksToAdd = 500;
-            setGoldMeta = true;
+    }
+
+    private boolean isVipRelatedNode(net.luckperms.api.node.Node node) {
+        String key = node.getKey().toLowerCase();
+
+        if (key.equals("mineskyclaims.vip.ouro") ||
+                key.equals("mineskyclaims.vip.diamante") ||
+                key.equals("mineskyclaims.vip.netherite")) {
+            return true;
         }
 
-        if (blocksToAdd <= 0) {
-            return;
-        }
+        return key.startsWith("group.");
+    }
 
-        final long amount = blocksToAdd;
-        final UUID uuid = lpUser.getUniqueId();
-        final String username = lpUser.getUsername() != null ? lpUser.getUsername() : "Player";
-
-        final boolean saveGold = setGoldMeta;
-        final boolean saveDiamond = setDiamondMeta;
-        final boolean saveNetherite = setNetheriteMeta;
+    private void updateVipClaimBlocksDeferred(UUID uuid, String username) {
+        final String playerName = username != null ? username : "Player";
 
         runTaskOnMainThread(() -> {
-            User user = User.of(uuid, username);
+            LuckPerms luckPerms = LuckPermsProvider.get();
+            net.luckperms.api.model.user.User lpUser = luckPerms.getUserManager().getUser(uuid);
+
+            if (lpUser == null) {
+                return;
+            }
+
+            boolean hasNetherite = hasVipPermission(lpUser, "mineskyclaims.vip.netherite");
+            boolean hasDiamond = hasVipPermission(lpUser, "mineskyclaims.vip.diamante");
+            boolean hasGold = hasVipPermission(lpUser, "mineskyclaims.vip.ouro");
+
+            long targetBonus = hasNetherite ? 3000 : (hasDiamond ? 1500 : (hasGold ? 500 : 0));
+
+            VipStatus status = getVipStatus(uuid);
+            long currentBonus = status.netherite ? 3000 : (status.diamond ? 1500 : (status.gold ? 500 : 0));
+
+            if (targetBonus == currentBonus) {
+                return;
+            }
+
+            final long difference = Math.abs(targetBonus - currentBonus);
+            final boolean isAddition = targetBonus > currentBonus;
+
+            final boolean newGold = hasNetherite || hasDiamond || hasGold;
+            final boolean newDiamond = hasNetherite || hasDiamond;
+            final boolean newNetherite = hasNetherite;
+
+            User user = User.of(uuid, playerName);
 
             plugin.editClaimBlocks(
                     user,
                     ClaimBlocksManager.ClaimBlockSource.ADMIN_ADJUSTMENT,
-                    (currentBlocks) -> currentBlocks + amount,
+                    (currentBlocks) -> {
+                        plugin.getLogger().info("[MineSky VIP] Player: " + playerName + " | Current Blocks: " + currentBlocks + " | Diff: " + difference + " | Addition: " + isAddition);
+
+                        long targetBlocks;
+                        if (isAddition) {
+                            targetBlocks = currentBlocks + difference;
+                        } else {
+                            targetBlocks = currentBlocks - difference;
+                        }
+
+                        long startingBlocks = plugin.getSettings().getClaims().getStartingClaimBlocks();
+                        long spent = plugin.getSpentClaimBlocks(uuid);
+                        long minimumAllowed = Math.max(startingBlocks, spent);
+
+                        if (targetBlocks < minimumAllowed) {
+                            return minimumAllowed;
+                        }
+                        return targetBlocks;
+                    },
                     (newBalance) -> {
-                        plugin.getLogger().info("Successfully added " + amount + " claim blocks to " + username + " (VIP).");
                         org.bukkit.entity.Player onlinePlayer = Bukkit.getPlayer(uuid);
-                        if (onlinePlayer != null) {
-                            onlinePlayer.sendMessage("§e§lTerrenos §8» §aSeus blocos de terrenos bônus VIP foram adicionados! Novo total: " + newBalance);
+                        if (isAddition) {
+                            plugin.getLogger().info("Successfully added " + difference + " claim blocks to " + playerName + " (VIP Upgrade/Activation).");
+                            if (onlinePlayer != null) {
+                                onlinePlayer.sendMessage("§e§lTerrenos §8» §aSeus blocos de terrenos bônus VIP foram adicionados! Novo total: " + newBalance);
+                            }
+                        } else {
+                            plugin.getLogger().info("Successfully removed " + difference + " claim blocks from " + playerName + " (VIP Expired/Downgrade).");
+                            if (onlinePlayer != null) {
+                                onlinePlayer.sendMessage("§e§lTerrenos §8» §cSeus blocos bônus de terreno expiraram devido ao fim do seu VIP! Novo total: " + newBalance);
+                            }
                         }
                     }
             );
 
-            if (saveGold) {
-                lpUser.data().add(MetaNode.builder("claims_gold_received", "true").build());
-            }
-            if (saveDiamond) {
-                lpUser.data().add(MetaNode.builder("claims_diamond_received", "true").build());
-            }
-            if (saveNetherite) {
-                lpUser.data().add(MetaNode.builder("claims_netherite_received", "true").build());
-            }
-            luckPerms.getUserManager().saveUser(lpUser);
+            saveVipStatus(uuid, newGold, newDiamond, newNetherite);
         });
+    }
+
+    private boolean hasVipPermission(net.luckperms.api.model.user.User lpUser, String permission) {
+        boolean hasDirect = lpUser.getNodes().stream()
+                .anyMatch(n -> n.getKey().equalsIgnoreCase(permission));
+        if (hasDirect) {
+            return true;
+        }
+
+        LuckPerms luckPerms = LuckPermsProvider.get();
+        return lpUser.getNodes().stream()
+                .filter(n -> n.getKey().startsWith("group."))
+                .map(n -> n.getKey().substring("group.".length()))
+                .map(groupName -> luckPerms.getGroupManager().getGroup(groupName))
+                .filter(Objects::nonNull)
+                .anyMatch(group -> group.getNodes().stream()
+                        .anyMatch(n -> n.getKey().equalsIgnoreCase(permission)));
     }
 
     private void runTaskOnMainThread(Runnable runnable) {
         try {
-            Class.forName("io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler");
-            Bukkit.getGlobalRegionScheduler().run(plugin, (scheduledTask) -> runnable.run());
-        } catch (ClassNotFoundException | NoSuchMethodError e) {
+            java.lang.reflect.Method getGlobalRegionSchedulerMethod = Bukkit.class.getMethod("getGlobalRegionScheduler");
+            Object globalScheduler = getGlobalRegionSchedulerMethod.invoke(null);
+
+            java.lang.reflect.Method runMethod = globalScheduler.getClass().getMethod(
+                    "run",
+                    org.bukkit.plugin.Plugin.class,
+                    java.util.function.Consumer.class
+            );
+
+            java.util.function.Consumer<?> taskConsumer = (task) -> runnable.run();
+            runMethod.invoke(globalScheduler, plugin, taskConsumer);
+
+        } catch (Exception e) {
             Bukkit.getScheduler().runTask(plugin, runnable);
+        }
+    }
+
+    private File getDatabaseFile() {
+        return new File(plugin.getDataFolder(), "vip_claimsblocks.db");
+    }
+
+    private Connection getConnection() throws SQLException {
+        File dbFile = getDatabaseFile();
+        if (!dbFile.getParentFile().exists()) {
+            dbFile.getParentFile().mkdirs();
+        }
+        return DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath());
+    }
+
+    private void setupDatabase() {
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE IF NOT EXISTS vip_received (" +
+                    "uuid TEXT PRIMARY KEY, " +
+                    "gold_received INTEGER DEFAULT 0, " +
+                    "diamond_received INTEGER DEFAULT 0, " +
+                    "netherite_received INTEGER DEFAULT 0" +
+                    ")");
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to initialize VIP claims SQLite database: " + e.getMessage());
+        }
+    }
+
+    private VipStatus getVipStatus(UUID uuid) {
+        String query = "SELECT gold_received, diamond_received, netherite_received FROM vip_received WHERE uuid = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, uuid.toString());
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new VipStatus(
+                            rs.getInt("gold_received") == 1,
+                            rs.getInt("diamond_received") == 1,
+                            rs.getInt("netherite_received") == 1
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to query VIP claims status for " + uuid + ": " + e.getMessage());
+        }
+        return new VipStatus(false, false, false);
+    }
+
+    private void saveVipStatus(UUID uuid, boolean gold, boolean diamond, boolean netherite) {
+        String sql = "INSERT INTO vip_received (uuid, gold_received, diamond_received, netherite_received) " +
+                "VALUES (?, ?, ?, ?) " +
+                "ON CONFLICT(uuid) DO UPDATE SET " +
+                "gold_received = excluded.gold_received, " +
+                "diamond_received = excluded.diamond_received, " +
+                "netherite_received = excluded.netherite_received";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, uuid.toString());
+            pstmt.setInt(2, gold ? 1 : 0);
+            pstmt.setInt(3, diamond ? 1 : 0);
+            pstmt.setInt(4, netherite ? 1 : 0);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to save VIP claims status for " + uuid + ": " + e.getMessage());
+        }
+    }
+
+    private static class VipStatus {
+        final boolean gold;
+        final boolean diamond;
+        final boolean netherite;
+
+        VipStatus(boolean gold, boolean diamond, boolean netherite) {
+            this.gold = gold;
+            this.diamond = diamond;
+            this.netherite = netherite;
         }
     }
 }

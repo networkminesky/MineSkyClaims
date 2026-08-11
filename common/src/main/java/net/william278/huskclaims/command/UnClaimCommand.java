@@ -31,7 +31,7 @@ public class UnClaimCommand extends InClaimOwnerCommand {
 
     protected UnClaimCommand(@NotNull HuskClaims plugin) {
         super(
-                List.of("unclaim", "abandonclaim", "abandonar", "abandornarterreno"),
+                List.of("unclaim", "abandonclaim", "abandonar", "abandonarterreno"),
                 "[confirm]",
                 plugin
         );
