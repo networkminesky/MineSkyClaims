@@ -20,6 +20,7 @@
 package net.william278.huskclaims.listener;
 
 import net.william278.huskclaims.BukkitHuskClaims;
+import net.william278.huskclaims.api.HuskClaimsAPI;
 import net.william278.huskclaims.user.ClaimBlocksManager;
 import net.william278.huskclaims.user.User;
 import net.luckperms.api.LuckPerms;
@@ -28,6 +29,10 @@ import net.luckperms.api.event.EventBus;
 import net.luckperms.api.event.node.NodeAddEvent;
 import net.luckperms.api.event.node.NodeRemoveEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 
 import java.io.File;
 import java.sql.Connection;
@@ -38,8 +43,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
-public class VipClaimBlocksListener {
+public class VipClaimBlocksListener implements Listener {
 
     private final BukkitHuskClaims plugin;
 
@@ -55,11 +61,71 @@ public class VipClaimBlocksListener {
 
         setupDatabase();
 
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+
         LuckPerms luckPerms = LuckPermsProvider.get();
         EventBus eventBus = luckPerms.getEventBus();
 
         eventBus.subscribe(plugin, NodeAddEvent.class, this::onNodeAdd);
         eventBus.subscribe(plugin, NodeRemoveEvent.class, this::onNodeRemove);
+    }
+
+    @EventHandler
+    public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
+        String message = event.getMessage().trim();
+        String[] args = message.split(" ");
+        String command = args[0].toLowerCase();
+
+        if (command.equals("/blocos")) {
+            Player player = event.getPlayer();
+            handleBlocosCommand(player);
+        }
+    }
+
+    private void handleBlocosCommand(Player player) {
+        UUID uuid = player.getUniqueId();
+        String username = player.getName();
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                LuckPerms luckPerms = LuckPermsProvider.get();
+                net.luckperms.api.model.user.User lpUser = luckPerms.getUserManager().getUser(uuid);
+
+                if (lpUser == null) {
+                    try {
+                        lpUser = luckPerms.getUserManager().loadUser(uuid).get();
+                    } catch (Exception e) {
+                        player.sendMessage("§e§lTerrenos §8» §cOcorreu um erro ao carregar seus dados de VIP. Tente novamente mais tarde.");
+                        return;
+                    }
+                }
+
+                if (lpUser == null) {
+                    player.sendMessage("§e§lTerrenos §8» §cNão foi possível verificar suas permissões VIP.");
+                    return;
+                }
+
+                boolean hasNetherite = hasVipPermission(lpUser, "mineskyclaims.vip.netherite");
+                boolean hasDiamond = hasVipPermission(lpUser, "mineskyclaims.vip.diamante");
+                boolean hasGold = hasVipPermission(lpUser, "mineskyclaims.vip.ouro");
+
+                long targetBonus = hasNetherite ? 3000 : (hasDiamond ? 1500 : (hasGold ? 500 : 0));
+
+                VipStatus status = getVipStatus(uuid);
+                long currentBonus = status.netherite ? 3000 : (status.diamond ? 1500 : (status.gold ? 500 : 0));
+
+                if (targetBonus > currentBonus) {
+                    player.sendMessage("§e§lTerrenos §8» §aDetectamos blocos VIP pendentes! Processando o resgate...");
+                    updateVipClaimBlocksDeferred(uuid, username);
+                } else if (targetBonus < currentBonus) {
+                    player.sendMessage("§e§lTerrenos §8» §cDetectamos uma mudança no seu VIP. Ajustando seus blocos...");
+                    updateVipClaimBlocksDeferred(uuid, username);
+                }
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erro ao processar o comando /blocos para o jogador " + username + ": " + e.getMessage());
+                player.sendMessage("§e§lTerrenos §8» §cOcorreu um erro interno ao processar seus blocos.");
+            }
+        });
     }
 
     private void onNodeAdd(NodeAddEvent event) {
@@ -152,7 +218,7 @@ public class VipClaimBlocksListener {
                         return targetBlocks;
                     },
                     (newBalance) -> {
-                        org.bukkit.entity.Player onlinePlayer = Bukkit.getPlayer(uuid);
+                        Player onlinePlayer = Bukkit.getPlayer(uuid);
                         if (isAddition) {
                             plugin.getLogger().info("Successfully added " + difference + " claim blocks to " + playerName + " (VIP Upgrade/Activation).");
                             if (onlinePlayer != null) {
