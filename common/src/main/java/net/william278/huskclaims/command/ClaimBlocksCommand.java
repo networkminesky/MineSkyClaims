@@ -35,8 +35,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public class ClaimBlocksCommand extends Command implements UserListTabCompletable, GlobalClaimsProvider {
+
+    private final Map<UUID, CompletableFuture<Void>> userQueues = new ConcurrentHashMap<>();
 
     protected ClaimBlocksCommand(@NotNull HuskClaims plugin) {
         super(
@@ -119,14 +125,45 @@ public class ClaimBlocksCommand extends Command implements UserListTabCompletabl
         executor.sendMessage(builder.build());
     }
 
+    private void queueUserOperation(@NotNull UUID uuid, @NotNull Consumer<Runnable> task) {
+        userQueues.compute(uuid, (key, currentQueue) -> {
+            CompletableFuture<Void> previous = (currentQueue != null) ? currentQueue : CompletableFuture.completedFuture(null);
+            CompletableFuture<Void> next = new CompletableFuture<>();
+
+            next.orTimeout(15, TimeUnit.SECONDS).exceptionally(ex -> null);
+
+            previous.whenComplete((ignored, error) -> {
+                try {
+                    task.accept(() -> {
+                        next.complete(null);
+                        userQueues.compute(key, (k, v) -> v == next ? null : v);
+                    });
+                } catch (Throwable t) {
+                    next.complete(null);
+                    userQueues.compute(key, (k, v) -> v == next ? null : v);
+                }
+            });
+
+            return next;
+        });
+    }
+
     private void changeClaimBlocks(@NotNull CommandUser executor, @NotNull User user, long changeBy, boolean set) {
-        plugin.editClaimBlocks(
-                user,
-                ClaimBlocksManager.ClaimBlockSource.ADMIN_ADJUSTMENT,
-                (blocks) -> Math.max(0, set ? changeBy : blocks + changeBy),
-                (newBalance) -> plugin.getLocales().getLocale("claim_blocks_updated", user.getName(),
-                        Long.toString(newBalance)).ifPresent(executor::sendMessage)
-        );
+        queueUserOperation(user.getUuid(), (onComplete) -> {
+            plugin.editClaimBlocks(
+                    user,
+                    ClaimBlocksManager.ClaimBlockSource.ADMIN_ADJUSTMENT,
+                    (blocks) -> Math.max(0, set ? changeBy : blocks + changeBy),
+                    (newBalance) -> {
+                        try {
+                            plugin.getLocales().getLocale("claim_blocks_updated", user.getName(),
+                                    Long.toString(newBalance)).ifPresent(executor::sendMessage);
+                        } finally {
+                            onComplete.run();
+                        }
+                    }
+            );
+        });
     }
 
     private void changeClaimBlocksPlayerGift(@NotNull CommandUser executor, @NotNull User user, long changeBy) {
@@ -147,25 +184,41 @@ public class ClaimBlocksCommand extends Command implements UserListTabCompletabl
             return;
         }
 
-        plugin.editClaimBlocks(
-                onlineExecuter,
-                ClaimBlocksManager.ClaimBlockSource.USER_GIFTED,
-                (blocks) -> Math.max(0, blocks - changeBy),
-                (newBalance) -> plugin.getLocales().getLocale("claim_blocks_gifted", user.getName(),
-                        Long.toString(changeBy)).ifPresent(executor::sendMessage));
+        queueUserOperation(onlineExecuter.getUuid(), (onDeductComplete) -> {
+            plugin.editClaimBlocks(
+                    onlineExecuter,
+                    ClaimBlocksManager.ClaimBlockSource.USER_GIFTED,
+                    (blocks) -> Math.max(0, blocks - changeBy),
+                    (newBalance) -> {
+                        try {
+                            plugin.getLocales().getLocale("claim_blocks_gifted", user.getName(),
+                                    Long.toString(changeBy)).ifPresent(executor::sendMessage);
 
-        final OnlineUser giftedPlayer = plugin.getOnlineUsers().stream().filter(online_player -> online_player.getUuid().equals(user.getUuid())).findFirst().orElse(null);
+                            final OnlineUser giftedPlayer = plugin.getOnlineUsers().stream()
+                                    .filter(online_player -> online_player.getUuid().equals(user.getUuid()))
+                                    .findFirst().orElse(null);
 
-        plugin.editClaimBlocks(
-                user,
-                ClaimBlocksManager.ClaimBlockSource.USER_GIFTED,
-                (blocks) -> Math.max(0, blocks + changeBy),
-                (newBalance) -> {
-                    if (giftedPlayer != null) {
-                        plugin.getLocales().getLocale("claim_blocks_gift_received", onlineExecuter.getName(),
-                        Long.toString(changeBy)).ifPresent(giftedPlayer::sendMessage);
-                    }
-                });
+                            queueUserOperation(user.getUuid(), (onReceiveComplete) -> {
+                                plugin.editClaimBlocks(
+                                        user,
+                                        ClaimBlocksManager.ClaimBlockSource.USER_GIFTED,
+                                        (blocks) -> Math.max(0, blocks + changeBy),
+                                        (giftedBalance) -> {
+                                            try {
+                                                if (giftedPlayer != null) {
+                                                    plugin.getLocales().getLocale("claim_blocks_gift_received", onlineExecuter.getName(),
+                                                            Long.toString(changeBy)).ifPresent(giftedPlayer::sendMessage);
+                                                }
+                                            } finally {
+                                                onReceiveComplete.run();
+                                            }
+                                        });
+                            });
+                        } finally {
+                            onDeductComplete.run();
+                        }
+                    });
+        });
     }
 
     private Optional<ClaimBlockOption> parseClaimBlockOption(@NotNull String[] args) {
