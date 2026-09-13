@@ -59,16 +59,22 @@ public interface ClaimHandler extends Handler {
         final Position fromPos = (Position) from;
         final Position toPos = (Position) to;
 
-        // Determine the claim world
         final Optional<ClaimWorld> optionalClaimWorld = getClaimWorld(toPos.getWorld());
         if (optionalClaimWorld.isEmpty()) {
             return false;
         }
         final ClaimWorld world = optionalClaimWorld.get();
 
-        // Determine from and to claims
-        final Optional<Claim> fromClaim = world.getClaimAt((Position) from);
-        final Optional<Claim> toClaim = world.getClaimAt((Position) to);
+        final Optional<Claim> toClaim = world.getClaimAt(toPos);
+
+        if (toClaim.isPresent() && world.isBannedFromClaim(online, toClaim.get(), getPlugin())) {
+            return true;
+        }
+
+        final Optional<Claim> fromClaim = fromPos.getWorld().equals(toPos.getWorld())
+                ? world.getClaimAt(fromPos)
+                : getClaimWorld(fromPos.getWorld()).flatMap(w -> w.getClaimAt(fromPos));
+
         if (fromClaim.equals(toClaim)) {
             return false;
         }

@@ -25,7 +25,9 @@ import net.william278.cloplib.operation.OperationPosition;
 import net.william278.cloplib.operation.OperationUser;
 import net.william278.huskclaims.BukkitHuskClaims;
 import net.william278.huskclaims.moderation.SignListener;
+import net.william278.huskclaims.position.Position;
 import net.william278.huskclaims.position.World;
+import net.william278.huskclaims.user.OnlineUser;
 import net.william278.huskclaims.user.User;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -93,12 +95,67 @@ public class BukkitListener extends BukkitOperationListener implements BukkitPet
         );
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onUserTeleport(@NotNull PlayerTeleportEvent e) {
-        if (e.getTo() != null && getPlugin().cancelMovement(
+        final Location to = e.getTo();
+        if (to == null || to.getWorld() == null) {
+            return;
+        }
+
+        final Player player = e.getPlayer();
+        final OnlineUser user = plugin.getOnlineUser(player);
+
+        if (plugin.isIgnoringClaims(user) && plugin.hasIgnoreClaimsBanPermission(user)) {
+            return;
+        }
+
+        final Position toPos = BukkitHuskClaims.Adapter.adapt(to);
+
+        plugin.getClaimWorld(toPos.getWorld()).ifPresent(claimWorld -> {
+            claimWorld.getClaimAt(toPos).ifPresent(claim -> {
+                boolean isBanned = claimWorld.isBannedFromClaim(user, claim, plugin)
+                        || (claim.isChildClaim() && claim.getParent()
+                        .map(parent -> claimWorld.isBannedFromClaim(user, parent, plugin)).orElse(false));
+
+                if (isBanned) {
+                    e.setCancelled(true);
+
+                    final Location fromLoc = e.getFrom();
+                    plugin.runSync(() -> {
+                        if (!player.isOnline()) return;
+
+                        Position currentPos = BukkitHuskClaims.Adapter.adapt(player.getLocation());
+                        if (claim.getRegion().contains(currentPos)) {
+                            if (fromLoc.getWorld() != null && !claim.getRegion().contains(BukkitHuskClaims.Adapter.adapt(fromLoc))) {
+                                player.teleport(fromLoc);
+                            } else {
+                                ejectPlayerOutsideClaim(player, claim);
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onUserMove(@NotNull PlayerMoveEvent e) {
+        if (e instanceof PlayerTeleportEvent) {
+            return;
+        }
+
+        final Location to = e.getTo();
+        final Location from = e.getFrom();
+        if (to == null || (from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ())) {
+            return;
+        }
+
+        if (getPlugin().cancelMovement(
                 plugin.getOnlineUser(e.getPlayer()),
-                BukkitHuskClaims.Adapter.adapt(e.getFrom()),
-                BukkitHuskClaims.Adapter.adapt(e.getTo())
+                BukkitHuskClaims.Adapter.adapt(from),
+                BukkitHuskClaims.Adapter.adapt(to)
         )) {
             e.setCancelled(true);
         }
@@ -165,6 +222,28 @@ public class BukkitListener extends BukkitOperationListener implements BukkitPet
     @Override
     public void setInspectionDistance(int i) {
         throw new UnsupportedOperationException("Cannot change inspection distance");
+    }
+
+    private void ejectPlayerOutsideClaim(@NotNull Player player, @NotNull net.william278.huskclaims.claim.Claim claim) {
+        final org.bukkit.World world = player.getWorld();
+        final net.william278.huskclaims.claim.Region region = claim.getRegion();
+
+        int targetX = player.getLocation().getBlockX();
+        int targetZ = player.getLocation().getBlockZ();
+
+        int nearX = Math.max(region.getNearCorner().getBlockX(), Math.min(targetX, region.getFarCorner().getBlockX()));
+        int nearZ = Math.max(region.getNearCorner().getBlockZ(), Math.min(targetZ, region.getFarCorner().getBlockZ()));
+
+        if (Math.abs(targetX - region.getNearCorner().getBlockX()) < Math.abs(targetX - region.getFarCorner().getBlockX())) {
+            nearX = region.getNearCorner().getBlockX() - 2;
+        } else {
+            nearX = region.getFarCorner().getBlockX() + 2;
+        }
+
+        int targetY = world.getHighestBlockYAt(nearX, nearZ) + 1;
+        final Location safeLocation = new Location(world, nearX + 0.5, targetY, nearZ + 0.5, player.getLocation().getYaw(), player.getLocation().getPitch());
+
+        player.teleport(safeLocation);
     }
 
 }
