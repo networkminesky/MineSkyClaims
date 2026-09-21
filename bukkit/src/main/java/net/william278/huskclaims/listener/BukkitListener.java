@@ -31,13 +31,12 @@ import net.william278.huskclaims.user.OnlineUser;
 import net.william278.huskclaims.user.User;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Tameable;
+import org.bukkit.entity.*;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.ItemStack;
@@ -158,6 +157,46 @@ public class BukkitListener extends BukkitOperationListener implements BukkitPet
                 BukkitHuskClaims.Adapter.adapt(to)
         )) {
             e.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onProjectileHit(@NotNull ProjectileHitEvent e) {
+        final Projectile projectile = e.getEntity();
+        if (!(projectile.getShooter() instanceof Player player)) {
+            return;
+        }
+
+        boolean isTeleportProjectile = projectile instanceof EnderPearl;
+
+        if (!isTeleportProjectile && projectile instanceof AbstractArrow) {
+            for (Entity passenger : projectile.getPassengers()) {
+                if (passenger instanceof EnderPearl) {
+                    isTeleportProjectile = true;
+                    break;
+                }
+            }
+        }
+
+        if (!isTeleportProjectile) return;
+
+        final Location hitLocation;
+        if (e.getHitBlock() != null) {
+            hitLocation = e.getHitBlock().getLocation().add(0.5, 1.0, 0.5);
+        } else if (e.getHitEntity() != null) {
+            hitLocation = e.getHitEntity().getLocation();
+        } else {
+            hitLocation = projectile.getLocation();
+        }
+
+        if (getPlugin().cancelMovement(
+                plugin.getOnlineUser(player),
+                BukkitHuskClaims.Adapter.adapt(player.getLocation()),
+                BukkitHuskClaims.Adapter.adapt(hitLocation)
+        )) {
+            e.setCancelled(true);
+            projectile.getPassengers().forEach(Entity::remove);
+            projectile.remove();
         }
     }
 

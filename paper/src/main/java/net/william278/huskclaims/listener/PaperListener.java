@@ -21,6 +21,8 @@ package net.william278.huskclaims.listener;
 
 import net.kyori.adventure.text.Component;
 import net.william278.huskclaims.BukkitHuskClaims;
+import net.william278.huskclaims.commands.TerrenoCommand;
+import net.william278.huskclaims.managers.TrustInputManager;
 import net.william278.huskclaims.moderation.SignWrite;
 import org.bukkit.block.sign.Side;
 import org.bukkit.event.EventHandler;
@@ -39,6 +41,11 @@ public class PaperListener extends BukkitListener {
     public void register() {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         plugin.getServer().getPluginManager().registerEvents(new ClaimListener(plugin), plugin);
+        TrustInputManager trustInputManager = new TrustInputManager();
+        var pm = plugin.getServer().getPluginManager();
+        pm.registerEvents(new ClaimMenuListener(plugin, trustInputManager), plugin);
+        pm.registerEvents(new ChatInputListener(plugin, trustInputManager), plugin);
+        plugin.registerCommand("terreno", "Menu de gerenciamento do terreno", java.util.List.of(), new TerrenoCommand(plugin));
         new VipClaimBlocksListener(plugin).register();
         setInspectorCallbacks();
     }

@@ -54,7 +54,7 @@ public interface SafeTeleportProvider {
             return;
         }
         findSafePosition(position).thenAccept(found -> found.ifPresentOrElse(
-                (safe) -> getPlugin().runSync(() -> user.teleport(safe,  instant)),
+                (safe) -> user.teleport(safe,  instant),
                 () -> teleportOutOfClaim(user, positions, tries - 1, instant)
         ));
     }

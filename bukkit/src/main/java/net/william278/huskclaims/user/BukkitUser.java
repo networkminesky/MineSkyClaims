@@ -19,7 +19,6 @@
 
 package net.william278.huskclaims.user;
 
-import io.papermc.lib.PaperLib;
 import lombok.Getter;
 import net.william278.cloplib.listener.InspectorCallbackProvider;
 import net.william278.huskclaims.BukkitHuskClaims;
@@ -126,7 +125,7 @@ public class BukkitUser extends OnlineUser {
 
     private void teleportInstant(@NotNull Position position) {
         final Location location = BukkitHuskClaims.Adapter.adapt(position);
-        plugin.runSync(bukkitPlayer, () -> PaperLib.teleportAsync(bukkitPlayer, location));
+        plugin.runSync(bukkitPlayer, () -> bukkitPlayer.teleportAsync(location));
     }
 
     @Override
