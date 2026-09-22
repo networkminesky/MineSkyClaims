@@ -24,6 +24,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.william278.huskclaims.api.BukkitHuskClaimsAPI;
 import net.william278.huskclaims.guis.ClaimBanMenu;
 import net.william278.huskclaims.guis.ClaimMainMenu;
+import net.william278.huskclaims.guis.MenuHelper;
 import net.william278.huskclaims.managers.TrustInputManager;
 import net.william278.huskclaims.user.User;
 import org.bukkit.Bukkit;
@@ -66,14 +67,16 @@ public class ChatInputListener implements Listener {
         inputManager.removePending(player.getUniqueId());
 
         if (targetName.equalsIgnoreCase("cancelar")) {
-            player.sendMessage("§cAção cancelada.");
+            MenuHelper.playToggleOff(player);
+            player.sendMessage(MenuHelper.text("<#EF4444>✦ Ação cancelada.</#EF4444>"));
             return;
         }
 
         player.getScheduler().run(plugin, task -> {
             OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetName);
             if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline()) {
-                player.sendMessage("§cJogador '" + targetName + "' nunca entrou no servidor!");
+                MenuHelper.playToggleOff(player);
+                player.sendMessage(MenuHelper.text("<#EF4444>✦ Jogador '" + targetName + "' não encontrado!</#EF4444>"));
                 return;
             }
 
@@ -84,18 +87,22 @@ public class ChatInputListener implements Listener {
                 try {
                     pending.claim().setUserTrustLevel(targetUser.getUuid(), pending.trustLevel());
                     pending.claimWorld().cacheUser(targetUser);
-                    player.sendMessage("§aPermissão de §e" + pending.trustLevel().getDisplayName() + " §aconcedida para §e" + targetUser.getName() + "§a!");
+                    MenuHelper.playSuccess(player);
+                    player.sendMessage(MenuHelper.text("<gradient:#43e97b:#38f9d7>+ Permissão de " + pending.trustLevel().getDisplayName() + " concedida para " + targetUser.getName() + "!</gradient>"));
                     ClaimMainMenu.open(plugin, player, pending.claim(), pending.claimWorld());
                 } catch (IllegalArgumentException e) {
-                    player.sendMessage("§cNão é possível adicionar um jogador que está banido do terreno!");
+                    MenuHelper.playDanger(player);
+                    player.sendMessage(MenuHelper.text("<#EF4444>✦ Jogador banido do terreno!</#EF4444>"));
                 }
             } else if (pending.type() == TrustInputManager.ActionType.BAN_USER) {
                 try {
                     pending.claim().banUser(targetUser, arbiterUser);
-                    player.sendMessage("§cO jogador §e" + targetUser.getName() + " §cfoi banido da sua claim!");
+                    MenuHelper.playDanger(player);
+                    player.sendMessage(MenuHelper.text("<#EF4444>✦ O jogador " + targetUser.getName() + " foi banido da sua claim!</#EF4444>"));
                     ClaimBanMenu.open(plugin, player, pending.claim(), pending.claimWorld());
                 } catch (IllegalArgumentException e) {
-                    player.sendMessage("§cVocê não pode banir a si mesmo ou o dono do terreno!");
+                    MenuHelper.playDanger(player);
+                    player.sendMessage(MenuHelper.text("<#EF4444>✦ Você não pode banir a si mesmo ou o dono!</#EF4444>"));
                 }
             }
         }, null);

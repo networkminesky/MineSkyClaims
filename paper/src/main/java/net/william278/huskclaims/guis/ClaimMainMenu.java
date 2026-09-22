@@ -20,8 +20,6 @@
 package net.william278.huskclaims.guis;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import net.william278.huskclaims.api.BukkitHuskClaimsAPI;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
@@ -32,83 +30,118 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.Plugin;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 public class ClaimMainMenu {
 
     public static void open(Plugin plugin, Player player, Claim claim, ClaimWorld claimWorld) {
         player.getScheduler().run(plugin, task -> {
             BukkitHuskClaimsAPI api = BukkitHuskClaimsAPI.getInstance();
-            Inventory inv = Bukkit.createInventory(null, 45, Component.text("Gerenciador de Terreno", NamedTextColor.DARK_GRAY));
+            Inventory inv = Bukkit.createInventory(null, 45, MenuHelper.text("<gradient:#4facfe:#00f2fe>Gerenciador de Terrenos</gradient>"));
 
             Region region = claim.getRegion();
             int area = region.getSurfaceArea();
-            int width = region.getLongestEdge();
-            int length = region.getShortestEdge();
-            Region.Point near = region.getNearCorner();
-            Region.Point far = region.getFarCorner();
+            Region.Point center = region.getCenter();
 
             api.getClaimBlocks(player.getUniqueId()).thenAccept(blocks -> {
                 player.getScheduler().run(plugin, subTask -> {
-                    ItemStack infoItem = new ItemStack(Material.PLAYER_HEAD);
-                    SkullMeta skull = (SkullMeta) infoItem.getItemMeta();
+                    ItemStack infoItem = new ItemStack(Material.GOLDEN_SHOVEL);
+                    var meta = infoItem.getItemMeta();
                     OfflinePlayer p = Bukkit.getOfflinePlayer(claim.getOwner().get());
-                    skull.setOwningPlayer(p);
-                    skull.displayName(Component.text("Informações do Terreno", NamedTextColor.GOLD, TextDecoration.BOLD));
+                    meta.displayName(MenuHelper.text("<gradient:#f7971e:#ffd200>✦ Área Protegida</gradient>"));
 
-                    List<Component> lore = new ArrayList<>();
-                    lore.add(Component.text("§7Dono: §e" + (claim.isAdminClaim() ? "Administração" : p.getName())));
-                    lore.add(Component.text("§7Tipo: §f" + (claim.isChildClaim() ? "Sub-divisão" : (claim.isAdminClaim() ? "Admin" : "Comum"))));
-                    lore.add(Component.text("§7Tamanho: §b" + width + " §7x §b" + length + " §7(" + area + " blocos²)"));
-                    lore.add(Component.text("§7Cantos: §8[§7" + near.getBlockX() + ", " + near.getBlockZ() + "§8] §7até §8[§7" + far.getBlockX() + ", " + far.getBlockZ() + "§8]"));
-                    lore.add(Component.empty());
-                    lore.add(Component.text("§7Seus blocos de claim: §a" + blocks));
-                    skull.lore(lore);
-                    infoItem.setItemMeta(skull);
+                    meta.lore(List.of(
+                            MenuHelper.text("<#78716C>Informações do Terreno</#78716C>"),
+                            Component.empty(),
+                            MenuHelper.text("<#E2E8F0>Mundo: <white>" + player.getWorld().getName() + "</white>"),
+                            MenuHelper.text("<#E2E8F0>Centro: <gradient:#4facfe:#00f2fe>X: " + center.getBlockX() + " | Z: " + center.getBlockZ() + "</gradient>"),
+                            MenuHelper.text("<#E2E8F0>Área de Bloco: <white>" + area + " blocos²</white>"),
+                            MenuHelper.text("<#E2E8F0>Seus Blocos Restantes: <gradient:#43e97b:#38f9d7>" + blocks + " blocos</gradient>"),
+                            Component.empty(),
+                            MenuHelper.text("<#78716C>Dono: <white>" + (claim.isAdminClaim() ? "Administração" : p.getName()) + "</white>")
+                    ));
+                    infoItem.setItemMeta(meta);
                     inv.setItem(4, infoItem);
                 }, null);
             });
 
-            inv.setItem(20, createItem(Material.WRITABLE_BOOK, "§a§lMembros Confiados",
-                    List.of("§7Veja quem tem acesso à sua claim,",
-                            "§7adicione novos membros ou revogue permissões.", "",
-                            "§eClique para ver o trustlist")));
+            inv.setItem(20, MenuHelper.createItem(Material.WRITABLE_BOOK,
+                    "<gradient:#4facfe:#00f2fe>✦ Membros Confiados</gradient>",
+                    List.of(
+                            "<#78716C>Gerenciamento de Amigos</#78716C>",
+                            "",
+                            "<#E2E8F0>Veja e configure quem possui</#E2E8F0>",
+                            "<#E2E8F0>acesso para construir ou usar recipientes.</#E2E8F0>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para ver o trustlist</gradient>"
+                    )
+            ));
 
-            inv.setItem(22, createItem(Material.REDSTONE_TORCH, "§6§lPropriedades (Flags)",
-                    List.of("§7Ative ou desative PvP, fogo,", "§7explosões, monstros e interações.", "", "§eClique para configurar")));
+            inv.setItem(22, MenuHelper.createItem(Material.REDSTONE_TORCH,
+                    "<gradient:#f7971e:#ffd200>✦ Propriedades (Flags)</gradient>",
+                    List.of(
+                            "<#78716C>Regras do Terreno</#78716C>",
+                            "",
+                            "<#E2E8F0>Configure regras de PvP, fogo, explosões,</#E2E8F0>",
+                            "<#E2E8F0>nascimento de monstros e portas.</#E2E8F0>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para configurar</gradient>"
+                    )
+            ));
 
-            inv.setItem(24, createItem(Material.IRON_SWORD, "§c§lBanimentos do Terreno",
-                    List.of("§7Gerencie a lista de banidos", "§7ou bana jogadores do terreno.", "", "§eClique para moderar")));
+            inv.setItem(24, MenuHelper.createItem(Material.IRON_SWORD,
+                    "<gradient:#ff416c:#ff4b2b>✦ Banimentos & Moderação</gradient>",
+                    List.of(
+                            "<#78716C>Segurança da Claim</#78716C>",
+                            "",
+                            "<#E2E8F0>Impeça invasores de entrar na área</#E2E8F0>",
+                            "<#E2E8F0>ou gerencie jogadores banidos.</#E2E8F0>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para moderar</gradient>"
+                    )
+            ));
 
             boolean isPrivate = claim.isPrivateClaim();
-            inv.setItem(30, createItem(isPrivate ? Material.IRON_DOOR : Material.OAK_DOOR,
-                    "§d§lStatus: " + (isPrivate ? "§c§lPRIVADO" : "§a§lPÚBLICO"),
-                    List.of("§7Se o terreno estiver privado,", "§7visitantes não podem entrar.", "",
-                            "§7Estado atual: " + (isPrivate ? "§cBloqueado para visitantes" : "§aAberto ao público"),
-                            "", "§eClique para alternar")));
+            inv.setItem(30, MenuHelper.createItem(isPrivate ? Material.IRON_DOOR : Material.OAK_DOOR,
+                    isPrivate ? "<gradient:#ff416c:#ff4b2b>✦ Terreno Privado</gradient>" : "<gradient:#43e97b:#38f9d7>✦ Terreno Público</gradient>",
+                    List.of(
+                            "<#78716C>Controle de Acesso</#78716C>",
+                            "",
+                            "<#E2E8F0>Status: " + (isPrivate ? "<gradient:#ff416c:#ff4b2b>Bloqueado para visitantes</gradient>" : "<gradient:#43e97b:#38f9d7>Livre para visitantes</gradient>"),
+                            "<#78716C>Quando privado, apenas membros entram.</#78716C>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para alternar</gradient>"
+                    )
+            ));
 
-            inv.setItem(32, createItem(Material.GLOWSTONE_DUST, "§e§lDestacar Bordas",
-                    List.of("§7Mostra partículas nos limites", "§7deste terreno temporariamente.", "", "§eClique para visualizar")));
+            inv.setItem(32, MenuHelper.createItem(Material.GLOWSTONE_DUST,
+                    "<gradient:#f7971e:#ffd200>✦ Visualizar Bordas</gradient>",
+                    List.of(
+                            "<#78716C>Projeção Visual</#78716C>",
+                            "",
+                            "<#E2E8F0>Projeta blocos brilhantes no contorno</#E2E8F0>",
+                            "<#E2E8F0>e nos cantos do seu terreno.</#E2E8F0>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para destacar</gradient>"
+                    )
+            ));
 
-            inv.setItem(40, createItem(Material.BARRIER, "§4§lAbandonar Terreno",
-                    List.of("§7Deleta este terreno e devolve", "§7seus blocos de proteção.", "", "§c§lCUIDADO: §cAção irreversível!")));
+            inv.setItem(40, MenuHelper.createItem(Material.BARRIER,
+                    "<gradient:#ff416c:#ff4b2b>✦ Abandonar Terreno</gradient>",
+                    List.of(
+                            "<#78716C>Exclusão Permanente</#78716C>",
+                            "",
+                            "<#E2E8F0>Remove toda a proteção e devolve</#E2E8F0>",
+                            "<#E2E8F0>seus blocos de claim de volta.</#E2E8F0>",
+                            "",
+                            "<gradient:#ff416c:#ff4b2b>ⓘ Esta ação não pode ser desfeita!</gradient>",
+                            "<gradient:#ff416c:#ff4b2b>▶ Clique para deletar</gradient>"
+                    )
+            ));
 
             player.openInventory(inv);
         }, null);
-    }
-
-    public static ItemStack createItem(Material mat, String name, List<String> lore) {
-        ItemStack item = new ItemStack(mat);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(name));
-        meta.lore(lore.stream().map(Component::text).toList());
-        item.setItemMeta(meta);
-        return item;
     }
 }

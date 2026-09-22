@@ -20,7 +20,6 @@
 package net.william278.huskclaims.guis;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.william278.cloplib.operation.OperationType;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
@@ -29,7 +28,6 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
 import java.util.List;
@@ -58,9 +56,9 @@ public class ClaimFlagsMenu {
             new FlagItem("farm_block_break", Material.WHEAT, "Colher Plantações", "Permite colher trigo, cenouras, batatas, etc."),
             new FlagItem("farm_block_interact", Material.FARMLAND, "Pisotear Plantações", "Pulos e saltos destroem terras aradas."),
             new FlagItem("entity_interact", Material.SADDLE, "Interagir com Entidades", "Montar cavalos, tosquiar ovelhas ou ordenhar vacas."),
-            new FlagItem("player_damage_entity", Material.IRON_SWORD, "Dano a Animais/Entidades", "Permite atacar e matar animais do terreno."),
+            new FlagItem("player_damage_entity", Material.IRON_SWORD, "Dano a Animais", "Permite atacar e matar animais da claim."),
             new FlagItem("player_damage_monster", Material.GOLDEN_SWORD, "Atacar Monstros", "Permite que jogadores ataquem mobs hostis."),
-            new FlagItem("player_damage_persistent_entity", Material.NAME_TAG, "Dano a Pets/Nomeados", "Permite atacar animais com etiqueta ou domados."),
+            new FlagItem("player_damage_persistent_entity", Material.NAME_TAG, "Dano a Pets/Nomeados", "Permite atacar animais domesticados ou com etiqueta."),
             new FlagItem("start_raid", Material.CROSSBOW, "Iniciar Invasões (Raids)", "Inicia ataques de Pillagers se tiver Mau Presságio."),
             new FlagItem("place_vehicle", Material.OAK_BOAT, "Posicionar Veículos", "Permite colocar barcos e carrinhos de mina."),
             new FlagItem("break_vehicle", Material.MINECART, "Quebrar Veículos", "Permite quebrar e remover barcos e carrinhos."),
@@ -69,14 +67,14 @@ public class ClaimFlagsMenu {
             new FlagItem("use_spawn_egg", Material.EGG, "Usar Ovos de Invocação", "Permite invocar criaturas usando ovos de spawn.")
     );
 
-    private static final int PAGE_SIZE = 21; // 3 linhas de 7 slots úteis
+    private static final int PAGE_SIZE = 21;
 
     public static void open(Plugin plugin, Player player, Claim claim, ClaimWorld claimWorld, int page) {
         player.getScheduler().run(plugin, task -> {
             int totalPages = (int) Math.ceil((double) ALL_FLAGS.size() / PAGE_SIZE);
             int currentPage = Math.max(0, Math.min(page, totalPages - 1));
 
-            Inventory inv = Bukkit.createInventory(null, 54, Component.text("Flags - Página " + (currentPage + 1) + "/" + totalPages, NamedTextColor.DARK_GRAY));
+            Inventory inv = Bukkit.createInventory(null, 54, MenuHelper.text("<#78716C>Propriedades » Pág. " + (currentPage + 1) + "/" + totalPages));
 
             int startIndex = currentPage * PAGE_SIZE;
             int endIndex = Math.min(startIndex + PAGE_SIZE, ALL_FLAGS.size());
@@ -91,28 +89,51 @@ public class ClaimFlagsMenu {
                 FlagItem flag = ALL_FLAGS.get(i);
                 boolean isEnabled = isFlagActive(claim, flag.id());
 
-                ItemStack item = new ItemStack(flag.material());
-                ItemMeta meta = item.getItemMeta();
-                meta.displayName(Component.text((isEnabled ? "§a✔ " : "§c✖ ") + flag.name()));
-                meta.lore(List.of(
-                        Component.text("§7" + flag.desc()),
-                        Component.empty(),
-                        Component.text("§7Status: " + (isEnabled ? "§a§lPERMITIDO" : "§c§lBLOQUEADO")),
-                        Component.text("§eClique para alternar")
-                ));
-                item.setItemMeta(meta);
+                ItemStack item = MenuHelper.createItem(flag.material(),
+                        (isEnabled ? "<#22C55E>✦ " : "<#EF4444>✦ ") + flag.name(),
+                        List.of(
+                                "<#78716C>Regra da Claim</#78716C>",
+                                "",
+                                "<#E2E8F0>" + flag.desc() + "</#E2E8F0>",
+                                "",
+                                "<#E2E8F0>Status: " + (isEnabled ? "<#22C55E>✔ Ativado (Livre)</#22C55E>" : "<#EF4444>✖ Desativado (Bloqueado)</#EF4444>"),
+                                "",
+                                "<#FACC15>▶ Clique para alternar</#FACC15>"
+                        )
+                );
 
                 inv.setItem(slots[i - startIndex], item);
             }
 
             if (currentPage > 0) {
-                inv.setItem(45, ClaimMainMenu.createItem(Material.ARROW, "§ePágina Anterior", List.of("§7Ir para página " + currentPage)));
+                inv.setItem(45, MenuHelper.createItem(Material.ARROW,
+                        "<#FFB84D>✦ Página Anterior</#FFB84D>",
+                        List.of(
+                                "<#78716C>Navegação</#78716C>",
+                                "",
+                                "<#FACC15>▶ Ir para página " + currentPage + "</#FACC15>"
+                        )
+                ));
             }
 
-            inv.setItem(49, ClaimMainMenu.createItem(Material.BARRIER, "§cVoltar ao Menu", List.of("§7Retornar ao menu do terreno.")));
+            inv.setItem(49, MenuHelper.createItem(Material.BARRIER,
+                    "<#EF4444>✦ Voltar</#EF4444>",
+                    List.of(
+                            "<#78716C>Menu Principal</#78716C>",
+                            "",
+                            "<#FACC15>▶ Clique para retornar</#FACC15>"
+                    )
+            ));
 
             if (currentPage < totalPages - 1) {
-                inv.setItem(53, ClaimMainMenu.createItem(Material.ARROW, "§ePróxima Página", List.of("§7Ir para página " + (currentPage + 2))));
+                inv.setItem(53, MenuHelper.createItem(Material.ARROW,
+                        "<#FFB84D>✦ Próxima Página</#FFB84D>",
+                        List.of(
+                                "<#78716C>Navegação</#78716C>",
+                                "",
+                                "<#FACC15>▶ Ir para página " + (currentPage + 2) + "</#FACC15>"
+                        )
+                ));
             }
 
             player.openInventory(inv);

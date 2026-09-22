@@ -20,7 +20,6 @@
 package net.william278.huskclaims.guis;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
 import net.william278.huskclaims.user.User;
@@ -44,10 +43,19 @@ public class ClaimBanMenu {
 
     public static void open(Plugin plugin, Player player, Claim claim, ClaimWorld claimWorld) {
         player.getScheduler().run(plugin, task -> {
-            Inventory inv = Bukkit.createInventory(null, 45, Component.text("Moderação e Banimentos", NamedTextColor.DARK_GRAY));
+            Inventory inv = Bukkit.createInventory(null, 45, MenuHelper.text("<#78716C>Banimentos da Claim"));
 
-            inv.setItem(4, ClaimMainMenu.createItem(Material.ANVIL, "§c§lBanir Novo Jogador",
-                    List.of("§7Impede um jogador de entrar", "§7ou pisar dentro da claim.", "", "§eClique para digitar o nick no chat")));
+            inv.setItem(4, MenuHelper.createItem(Material.ANVIL,
+                    "<#EF4444>+ Banir Jogador</#EF4444>",
+                    List.of(
+                            "<#78716C>Bloquear Entrada na Claim</#78716C>",
+                            "",
+                            "<#E2E8F0>Impede um jogador específico</#E2E8F0>",
+                            "<#E2E8F0>de cruzar os limites do terreno.</#E2E8F0>",
+                            "",
+                            "<#F87171>▶ Clique para banir pelo chat</#F87171>"
+                    )
+            ));
 
             NamespacedKey key = new NamespacedKey(plugin, BANNED_TAG);
 
@@ -55,30 +63,39 @@ public class ClaimBanMenu {
             for (UUID bannedUuid : claim.getBannedUsers().keySet()) {
                 if (slot >= 36) break;
 
-                OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(bannedUuid);
+                OfflinePlayer target = Bukkit.getOfflinePlayer(bannedUuid);
                 String name = claimWorld.getUser(bannedUuid)
                         .map(User::getName)
-                        .orElse(offlineTarget.getName() != null ? offlineTarget.getName() : "Desconhecido");
+                        .orElse(target.getName() != null ? target.getName() : "Desconhecido");
 
                 ItemStack head = new ItemStack(Material.PLAYER_HEAD);
                 SkullMeta meta = (SkullMeta) head.getItemMeta();
+                meta.setOwningPlayer(target);
 
-                meta.setOwningPlayer(offlineTarget);
-                meta.displayName(Component.text("§c" + name));
-
+                meta.displayName(MenuHelper.text("<#EF4444>✦ " + name + "</#EF4444>"));
                 meta.lore(List.of(
-                        Component.text("§7Este usuário está banido da claim."),
+                        MenuHelper.text("<#78716C>Jogador Banido</#78716C>"),
                         Component.empty(),
-                        Component.text("§eClique para desbanir")
+                        MenuHelper.text("<#E2E8F0>Status: <#EF4444>Entrada Proibida</#EF4444>"),
+                        Component.empty(),
+                        MenuHelper.text("<#FACC15>▶ Clique para desbanir</#FACC15>")
                 ));
 
                 meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, bannedUuid.toString());
-
                 head.setItemMeta(meta);
+
                 inv.setItem(slot++, head);
             }
 
-            inv.setItem(40, ClaimMainMenu.createItem(Material.BARRIER, "§cVoltar", List.of("§7Retornar ao menu principal.")));
+            inv.setItem(40, MenuHelper.createItem(Material.ARROW,
+                    "<#EF4444>✦ Voltar</#EF4444>",
+                    List.of(
+                            "<#78716C>Menu Principal</#78716C>",
+                            "",
+                            "<#FACC15>▶ Clique para retornar</#FACC15>"
+                    )
+            ));
+
             player.openInventory(inv);
         }, null);
     }

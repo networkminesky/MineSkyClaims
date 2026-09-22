@@ -20,25 +20,24 @@
 package net.william278.huskclaims.listener;
 
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.william278.huskclaims.BukkitHuskClaims;
 import net.william278.huskclaims.api.BukkitHuskClaimsAPI;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
-import net.william278.huskclaims.claim.Region;
-import net.william278.huskclaims.guis.*;
-import net.william278.huskclaims.highlighter.Highlightable;
+import net.william278.huskclaims.highlighter.Highlighter;
 import net.william278.huskclaims.managers.TrustInputManager;
+import net.william278.huskclaims.guis.*;
 import net.william278.huskclaims.position.Position;
-import net.william278.huskclaims.trust.TrustLevel;
+import net.william278.huskclaims.user.OnlineUser;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,11 +65,12 @@ public class ClaimMenuListener implements Listener {
         ItemStack current = event.getCurrentItem();
         if (current == null) return;
 
-        String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
+        String rawTitle = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
 
-        if (!title.contains("Gerenciador de Terreno") && !title.contains("Flags")
-                && !title.contains("Banimentos") && !title.contains("Adicionar Confiança")
-                && !title.contains("Membros Confiados") && !title.contains("Gerenciar:")) {
+        if (!rawTitle.contains("Gerenciador") && !rawTitle.contains("Propriedades")
+                && !rawTitle.contains("Banimentos") && !rawTitle.contains("Membros")
+                && !rawTitle.contains("Gerenciar »") && !rawTitle.contains("Adicionar Confiança")
+                && !rawTitle.contains("Confirmar Exclusão")) {
             return;
         }
 
@@ -83,7 +83,8 @@ public class ClaimMenuListener implements Listener {
 
         if (worldOpt.isEmpty() || claimOpt.isEmpty()) {
             player.closeInventory();
-            player.sendMessage("§cVocê precisa estar dentro do terreno!");
+            MenuHelper.playToggleOff(player);
+            player.sendMessage(MenuHelper.text("<#EF4444>Você precisa estar dentro do terreno!</#EF4444>"));
             return;
         }
 
@@ -91,102 +92,127 @@ public class ClaimMenuListener implements Listener {
         ClaimWorld claimWorld = worldOpt.get();
         int rawSlot = event.getRawSlot();
 
-        if (title.equals("Gerenciador de Terreno")) {
+        if (rawTitle.contains("Gerenciador de Terrenos")) {
             switch (rawSlot) {
-                case 20 -> ClaimTrustMenu.open(plugin, player, claim, claimWorld);
-                case 22 -> ClaimFlagsMenu.open(plugin, player, claim, claimWorld, 0);
-                case 24 -> ClaimBanMenu.open(plugin, player, claim, claimWorld);
+                case 20 -> {
+                    MenuHelper.playClick(player);
+                    ClaimTrustMenu.open(plugin, player, claim, claimWorld);
+                }
+                case 22 -> {
+                    MenuHelper.playClick(player);
+                    ClaimFlagsMenu.open(plugin, player, claim, claimWorld, 0);
+                }
+                case 24 -> {
+                    MenuHelper.playClick(player);
+                    ClaimBanMenu.open(plugin, player, claim, claimWorld);
+                }
                 case 30 -> {
                     boolean newState = !claim.isPrivateClaim();
                     claim.setPrivateClaim(newState);
-                    player.sendMessage(newState ? "§dO terreno agora é §c§lPRIVADO§d!" : "§dO terreno agora é §a§lPÚBLICO§d!");
+                    if (newState) {
+                        MenuHelper.playToggleOff(player);
+                    } else {
+                        MenuHelper.playToggleOn(player);
+                    }
+                    player.sendMessage(MenuHelper.text(newState
+                            ? "<#EF4444>✦ O terreno agora é PRIVADO (apenas membros podem entrar).</#EF4444>"
+                            : "<#22C55E>✦ O terreno agora é PÚBLICO (aberto a visitantes).</#22C55E>"));
                     ClaimMainMenu.open(plugin, player, claim, claimWorld);
                 }
                 case 32 -> {
                     player.closeInventory();
-                    Position viewer = api.getPosition(player.getLocation());
+                    BukkitHuskClaims huskPlugin = (BukkitHuskClaims) plugin;
+                    OnlineUser onlineUser = huskPlugin.getOnlineUser(player);
+                    Highlighter highlighter = huskPlugin.getHighlighter(onlineUser);
 
-                    Map<Region.Point, Highlightable.Type> points = claim.getHighlightPoints(
-                            claimWorld,
-                            false,
-                            viewer,
-                            128L
-                    );
-
-                    org.bukkit.World bukkitWorld = player.getWorld();
-                    double playerY = player.getLocation().getY();
-
-                    points.forEach((point, type) -> {
-                        double x = point.getBlockX() + 0.5;
-                        double z = point.getBlockZ() + 0.5;
-
-                        int groundY = bukkitWorld.getHighestBlockYAt(point.getBlockX(), point.getBlockZ());
-                        double y = (Math.abs(groundY - playerY) <= 10) ? groundY + 1.1 : playerY + 0.5;
-
-                        if (type.name().contains("CORNER")) {
-                            player.spawnParticle(org.bukkit.Particle.FLAME, x, y, z, 5, 0.05, 0.2, 0.05, 0.01);
-                            player.spawnParticle(org.bukkit.Particle.END_ROD, x, y + 0.5, z, 2, 0.0, 0.0, 0.0, 0.01);
-                        }
-                        else {
-                            player.spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, x, y, z, 2, 0.1, 0.1, 0.1, 0);
-                        }
-                    });
-
-                    player.sendMessage("§aAs bordas do terreno foram destacadas com partículas!");
+                    if (highlighter != null) {
+                        highlighter.stopHighlighting(onlineUser);
+                        highlighter.startHighlighting(
+                                onlineUser,
+                                api.getWorld(player.getWorld()),
+                                java.util.List.of(claim)
+                        );
+                        MenuHelper.playHighlight(player);
+                        player.sendMessage(MenuHelper.text("<#FFB84D>✦ As bordas do terreno foram destacadas com blocos brilhantes!</#FFB84D>"));
+                    }
                 }
                 case 40 -> {
-                    player.closeInventory();
-                    if (!claim.getOwner().get().equals(player.getUniqueId())) {
-                        player.sendMessage("§cVocê não é o dono do terreno.");
+                    boolean isOwner = claim.getOwner().map(uuid -> uuid.equals(player.getUniqueId())).orElse(false);
+                    boolean isAdmin = player.hasPermission("huskclaims.admin_claim");
+
+                    if (!isOwner && !isAdmin) {
+                        MenuHelper.playToggleOff(player);
+                        player.sendMessage(MenuHelper.text("<#EF4444>✦ Apenas o dono do terreno pode abandoná-lo!</#EF4444>"));
                         return;
                     }
-                    claimWorld.removeClaim(claim);
-                    player.sendMessage("§cVocê abandonou o seu terreno com sucesso!");
+
+                    MenuHelper.playClick(player);
+                    ClaimDeleteConfirmMenu.open(plugin, player, claim, claimWorld);
                 }
             }
         }
 
-        else if (title.contains("Membros Confiados")) {
+        else if (rawTitle.contains("Confirmar Exclusão")) {
+            if (rawSlot == 15) {
+                MenuHelper.playPage(player);
+                ClaimMainMenu.open(plugin, player, claim, claimWorld);
+                return;
+            }
+
+            if (rawSlot == 11) {
+                player.closeInventory();
+                MenuHelper.playDanger(player);
+                claimWorld.removeClaim(claim);
+                player.sendMessage(MenuHelper.text("<#EF4444>✦ Você abandonou o seu terreno! Seus blocos foram devolvidos.</#EF4444>"));
+            }
+        }
+
+        else if (rawTitle.contains("Membros Confiados")) {
             if (rawSlot == 40) {
+                MenuHelper.playPage(player);
                 ClaimMainMenu.open(plugin, player, claim, claimWorld);
                 return;
             }
 
             if (rawSlot == 4) {
+                MenuHelper.playClick(player);
                 TrustSelectionMenu.open(plugin, player, claim, claimWorld);
                 return;
             }
 
             NamespacedKey key = new NamespacedKey(plugin, ClaimTrustMenu.TRUST_UUID_KEY);
-            if (current.getItemMeta() != null && current.getItemMeta().getPersistentDataContainer().has(key, org.bukkit.persistence.PersistentDataType.STRING)) {
-                String uuidStr = current.getItemMeta().getPersistentDataContainer().get(key, org.bukkit.persistence.PersistentDataType.STRING);
+            if (current.getItemMeta() != null && current.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
+                String uuidStr = current.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
                 if (uuidStr != null) {
                     try {
                         UUID targetUuid = UUID.fromString(uuidStr);
+                        MenuHelper.playClick(player);
                         ClaimMemberManageMenu.open(plugin, player, claim, claimWorld, targetUuid);
                     } catch (IllegalArgumentException ignored) {}
                 }
             }
         }
 
-        else if (title.contains("Gerenciar:")) {
+        else if (rawTitle.contains("Gerenciar »")) {
             ItemStack headItem = event.getInventory().getItem(4);
             if (headItem == null || headItem.getItemMeta() == null) return;
 
             NamespacedKey key = new NamespacedKey(plugin, ClaimMemberManageMenu.TARGET_UUID_KEY);
-            String targetUuidStr = headItem.getItemMeta().getPersistentDataContainer().get(key, org.bukkit.persistence.PersistentDataType.STRING);
+            String targetUuidStr = headItem.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
             if (targetUuidStr == null) return;
 
             UUID targetUuid = UUID.fromString(targetUuidStr);
 
             if (rawSlot == 18) {
+                MenuHelper.playPage(player);
                 ClaimTrustMenu.open(plugin, player, claim, claimWorld);
                 return;
             }
 
             if (rawSlot == 15) {
                 claim.getTrustedUsers().remove(targetUuid);
-                player.sendMessage("§aO jogador foi removido do terreno com sucesso!");
+                MenuHelper.playDanger(player);
+                player.sendMessage(MenuHelper.text("<#EF4444>✦ O jogador foi removido do terreno com sucesso!</#EF4444>"));
                 ClaimTrustMenu.open(plugin, player, claim, claimWorld);
                 return;
             }
@@ -200,54 +226,58 @@ public class ClaimMenuListener implements Listener {
             };
 
             if (selectedLevelId != null) {
-                Optional<TrustLevel> optLevel = api.getTrustLevelByName(selectedLevelId);
-                if (optLevel.isPresent()) {
-                    TrustLevel level = optLevel.get();
+                api.getTrustLevelByName(selectedLevelId).ifPresent(level -> {
                     claim.setUserTrustLevel(targetUuid, level);
-                    player.sendMessage("§aNível de acesso alterado para: §e" + level.getDisplayName());
+                    MenuHelper.playSuccess(player);
+                    player.sendMessage(MenuHelper.text("<#22C55E>✦ Nível de acesso alterado para: <white>" + level.getDisplayName() + "</white>"));
                     ClaimMemberManageMenu.open(plugin, player, claim, claimWorld, targetUuid);
-                }
+                });
             }
         }
 
-
-        else if (title.equals("Adicionar Confiança")) {
+        else if (rawTitle.contains("Adicionar Confiança")) {
             if (rawSlot == 22) {
+                MenuHelper.playPage(player);
                 ClaimTrustMenu.open(plugin, player, claim, claimWorld);
                 return;
             }
 
-            String trustLevelId = switch (current.getType()) {
-                case OAK_DOOR -> "access";
-                case CHEST -> "container";
-                case CRAFTING_TABLE -> "build";
-                case NETHER_STAR -> "manage";
+            String trustLevelId = switch (rawSlot) {
+                case 10 -> "access";
+                case 12 -> "container";
+                case 14 -> "build";
+                case 16 -> "manage";
                 default -> null;
             };
 
             if (trustLevelId != null) {
-                Optional<TrustLevel> levelOpt = api.getTrustLevelByName(trustLevelId);
-                if (levelOpt.isPresent()) {
-                    TrustLevel level = levelOpt.get();
+                api.getTrustLevelByName(trustLevelId).ifPresent(level -> {
                     inputManager.setWaitingTrust(player.getUniqueId(), claim, claimWorld, level);
                     player.closeInventory();
-                    player.sendMessage("§8-----------------------------------------");
-                    player.sendMessage("§eNível selecionado: §a" + level.getDisplayName());
-                    player.sendMessage("§fDigite no chat o §enick do jogador §fque receberá o acesso.");
-                    player.sendMessage("§7(Ou digite §ccancelar §7para abortar)");
-                    player.sendMessage("§8-----------------------------------------");
-                }
+                    MenuHelper.playPrompt(player);
+                    player.sendMessage(MenuHelper.text("<#78716C>-----------------------------------------</#78716C>"));
+                    player.sendMessage(MenuHelper.text("<#22C55E>+ Nível Selecionado: <white>" + level.getDisplayName() + "</white>"));
+                    player.sendMessage(MenuHelper.text("<#E2E8F0>Digite no chat o <#FACC15>nick do jogador</#FACC15> que receberá o acesso.</#E2E8F0>"));
+                    player.sendMessage(MenuHelper.text("<#78716C>(Ou digite <#EF4444>cancelar</#EF4444> para abortar)</#78716C>"));
+                    player.sendMessage(MenuHelper.text("<#78716C>-----------------------------------------</#78716C>"));
+                });
             }
         }
 
-        else if (title.startsWith("Flags - Página")) {
-            int currentPage = Integer.parseInt(title.split("Página ")[1].split("/")[0]) - 1;
+        else if (rawTitle.contains("Propriedades »")) {
+            int currentPage = 0;
+            try {
+                currentPage = Integer.parseInt(rawTitle.split("Pág. ")[1].split("/")[0]) - 1;
+            } catch (Exception ignored) {}
 
             if (rawSlot == 45) {
+                MenuHelper.playPage(player);
                 ClaimFlagsMenu.open(plugin, player, claim, claimWorld, currentPage - 1);
             } else if (rawSlot == 53) {
+                MenuHelper.playPage(player);
                 ClaimFlagsMenu.open(plugin, player, claim, claimWorld, currentPage + 1);
             } else if (rawSlot == 49) {
+                MenuHelper.playPage(player);
                 ClaimMainMenu.open(plugin, player, claim, claimWorld);
             } else {
                 int[] slots = {
@@ -261,7 +291,16 @@ public class ClaimMenuListener implements Listener {
                         int flagIndex = (currentPage * 21) + i;
                         if (flagIndex < ClaimFlagsMenu.ALL_FLAGS.size()) {
                             String flagId = ClaimFlagsMenu.ALL_FLAGS.get(flagIndex).id();
+                            boolean wasActive = ClaimFlagsMenu.isFlagActive(claim, flagId);
+
                             ClaimFlagsMenu.toggleFlag(claim, flagId);
+
+                            if (!wasActive) {
+                                MenuHelper.playToggleOn(player);
+                            } else {
+                                MenuHelper.playToggleOff(player);
+                            }
+
                             ClaimFlagsMenu.open(plugin, player, claim, claimWorld, currentPage);
                         }
                         break;
@@ -270,8 +309,9 @@ public class ClaimMenuListener implements Listener {
             }
         }
 
-        else if (title.contains("Banimentos")) {
+        else if (rawTitle.contains("Banimentos")) {
             if (rawSlot == 40) {
+                MenuHelper.playPage(player);
                 ClaimMainMenu.open(plugin, player, claim, claimWorld);
                 return;
             }
@@ -279,23 +319,24 @@ public class ClaimMenuListener implements Listener {
             if (rawSlot == 4) {
                 inputManager.setWaitingBan(player.getUniqueId(), claim, claimWorld);
                 player.closeInventory();
-                player.sendMessage("§8-----------------------------------------");
-                player.sendMessage("§c§lBANIMENTO DE JOGADOR");
-                player.sendMessage("§fDigite no chat o §enick do jogador §fque deseja banir.");
-                player.sendMessage("§7(Ou digite §ccancelar §7para abortar)");
-                player.sendMessage("§8-----------------------------------------");
+                MenuHelper.playPrompt(player);
+                player.sendMessage(MenuHelper.text("<#78716C>-----------------------------------------</#78716C>"));
+                player.sendMessage(MenuHelper.text("<#EF4444>+ Banimento de Jogador</#EF4444>"));
+                player.sendMessage(MenuHelper.text("<#E2E8F0>Digite no chat o <#FACC15>nick do jogador</#FACC15> que deseja banir.</#E2E8F0>"));
+                player.sendMessage(MenuHelper.text("<#78716C>(Ou digite <#EF4444>cancelar</#EF4444> para abortar)</#78716C>"));
+                player.sendMessage(MenuHelper.text("<#78716C>-----------------------------------------</#78716C>"));
                 return;
             }
 
             NamespacedKey key = new NamespacedKey(plugin, ClaimBanMenu.BANNED_TAG);
-            if (current.getItemMeta() != null && current.getItemMeta().getPersistentDataContainer().has(key, org.bukkit.persistence.PersistentDataType.STRING)) {
-                String uuidString = current.getItemMeta().getPersistentDataContainer().get(key, org.bukkit.persistence.PersistentDataType.STRING);
-
+            if (current.getItemMeta() != null && current.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.STRING)) {
+                String uuidString = current.getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.STRING);
                 if (uuidString != null) {
                     try {
                         UUID targetUuid = UUID.fromString(uuidString);
                         claim.getBannedUsers().remove(targetUuid);
-                        player.sendMessage("§aJogador desbanido do terreno com sucesso!");
+                        MenuHelper.playSuccess(player);
+                        player.sendMessage(MenuHelper.text("<#22C55E>✦ Jogador desbanido da claim com sucesso!</#22C55E>"));
                         ClaimBanMenu.open(plugin, player, claim, claimWorld);
                     } catch (IllegalArgumentException ignored) {}
                 }

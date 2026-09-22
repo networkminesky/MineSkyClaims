@@ -20,7 +20,6 @@
 package net.william278.huskclaims.guis;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
 import net.william278.huskclaims.user.User;
@@ -49,19 +48,18 @@ public class ClaimMemberManageMenu {
                     .map(User::getName)
                     .orElse(targetPlayer.getName() != null ? targetPlayer.getName() : "Membro");
 
-            Inventory inv = Bukkit.createInventory(null, 27, Component.text("Gerenciar: " + targetName, NamedTextColor.DARK_GRAY));
+            Inventory inv = Bukkit.createInventory(null, 27, MenuHelper.text("<#78716C>Gerenciar » " + targetName));
 
             String currentLevel = claim.getTrustedUsers().getOrDefault(targetUuid, "access");
 
             ItemStack head = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta headMeta = (SkullMeta) head.getItemMeta();
             headMeta.setOwningPlayer(targetPlayer);
-            headMeta.displayName(Component.text("§e" + targetName));
+            headMeta.displayName(MenuHelper.text("<#2AD1E8>✦ " + targetName + "</#2AD1E8>"));
             headMeta.lore(List.of(
-                    Component.text("§7Nível Atual: " + ClaimTrustMenu.formatTrustLevel(currentLevel)),
+                    MenuHelper.text("<#78716C>Configurações de Permissão</#78716C>"),
                     Component.empty(),
-                    Component.text("§7Altere o nível clicando nos ícones"),
-                    Component.text("§7ou remova o acesso do jogador abaixo.")
+                    MenuHelper.text("<#E2E8F0>Nível Atual: " + ClaimTrustMenu.formatTrustLevel(currentLevel))
             ));
 
             NamespacedKey key = new NamespacedKey(plugin, TARGET_UUID_KEY);
@@ -69,26 +67,31 @@ public class ClaimMemberManageMenu {
             head.setItemMeta(headMeta);
             inv.setItem(4, head);
 
-            inv.setItem(10, createLevelItem(Material.OAK_DOOR, "Acesso", "access", currentLevel,
-                    "Permite entrar e usar botões/portas."));
+            inv.setItem(10, createLevelItem(Material.OAK_DOOR, "Acesso", "access", currentLevel, "Permite abrir portas, botões e alavancas."));
+            inv.setItem(11, createLevelItem(Material.CHEST, "Recipientes", "container", currentLevel, "Permite abrir baús, barris e fornalhas."));
+            inv.setItem(12, createLevelItem(Material.CRAFTING_TABLE, "Construção", "build", currentLevel, "Permite construir e quebrar blocos."));
+            inv.setItem(13, createLevelItem(Material.NETHER_STAR, "Gerenciar", "manage", currentLevel, "Permite gerenciar outros membros."));
 
-            inv.setItem(11, createLevelItem(Material.CHEST, "Containers", "container", currentLevel,
-                    "Permite abrir baús e fornalhas."));
+            inv.setItem(15, MenuHelper.createItem(Material.BARRIER,
+                    "<#EF4444>✦ Revogar Permissão</#EF4444>",
+                    List.of(
+                            "<#78716C>Remover Membro</#78716C>",
+                            "",
+                            "<#E2E8F0>Remove completamente o jogador</#E2E8F0>",
+                            "<#E2E8F0>da lista de membros do terreno.</#E2E8F0>",
+                            "",
+                            "<#F87171>▶ Clique para expulsar da claim</#F87171>"
+                    )
+            ));
 
-            inv.setItem(12, createLevelItem(Material.CRAFTING_TABLE, "Construção", "build", currentLevel,
-                    "Permite quebrar e colocar blocos."));
-
-            inv.setItem(13, createLevelItem(Material.NETHER_STAR, "Gerenciar", "manage", currentLevel,
-                    "Permite gerenciar outros membros."));
-
-            inv.setItem(15, ClaimMainMenu.createItem(Material.BARRIER, "§c§lRemover do Terreno", List.of(
-                    "§7Revoga totalmente qualquer acesso",
-                    "§7deste jogador à sua claim.",
-                    "",
-                    "§cClique para remover o jogador"
-            )));
-
-            inv.setItem(18, ClaimMainMenu.createItem(Material.ARROW, "§cVoltar", List.of("§7Retornar à lista de membros.")));
+            inv.setItem(18, MenuHelper.createItem(Material.ARROW,
+                    "<#EF4444>✦ Voltar</#EF4444>",
+                    List.of(
+                            "<#78716C>Lista de Membros</#78716C>",
+                            "",
+                            "<#FACC15>▶ Clique para retornar</#FACC15>"
+                    )
+            ));
 
             player.openInventory(inv);
         }, null);
@@ -96,12 +99,14 @@ public class ClaimMemberManageMenu {
 
     private static ItemStack createLevelItem(Material mat, String name, String levelId, String currentLevel, String desc) {
         boolean isCurrent = currentLevel.equalsIgnoreCase(levelId);
-        return ClaimMainMenu.createItem(mat,
-                (isCurrent ? "§a✔ " : "§7") + name,
+        return MenuHelper.createItem(mat,
+                (isCurrent ? "<#22C55E>✦ " : "<#78716C>✦ ") + name,
                 List.of(
-                        "§7" + desc,
+                        "<#78716C>Nível de Acesso</#78716C>",
                         "",
-                        isCurrent ? "§a§lNÍVEL ATUAL DO JOGADOR" : "§eClique para definir este nível"
+                        "<#E2E8F0>" + desc + "</#E2E8F0>",
+                        "",
+                        isCurrent ? "<#22C55E>✔ Nível Atual Ativo</#22C55E>" : "<#FACC15>▶ Clique para definir este nível</#FACC15>"
                 )
         );
     }

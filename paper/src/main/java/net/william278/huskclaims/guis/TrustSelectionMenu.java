@@ -19,18 +19,12 @@
 
 package net.william278.huskclaims.guis;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.william278.huskclaims.api.BukkitHuskClaimsAPI;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
-import net.william278.huskclaims.trust.TrustLevel;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
 import java.util.List;
@@ -39,52 +33,76 @@ public class TrustSelectionMenu {
 
     public static void open(Plugin plugin, Player player, Claim claim, ClaimWorld claimWorld) {
         player.getScheduler().run(plugin, task -> {
-            Inventory inv = Bukkit.createInventory(null, 27, Component.text("Adicionar Confiança", NamedTextColor.DARK_GRAY));
+            Inventory inv = Bukkit.createInventory(null, 27, MenuHelper.text("<gradient:#4facfe:#00f2fe>Adicionar Confiança » Seleção</gradient>"));
 
-            inv.setItem(10, createGuiItem(Material.OAK_DOOR, "§a§lConceder: Acesso", List.of(
-                    "§7Permite o jogador entrar e circular,",
-                    "§7além de usar portas, botões e alavancas.",
-                    "",
-                    "§cNão libera baús ou construções.",
-                    "§eClique para selecionar este nível"
-            )));
+            inv.setItem(10, MenuHelper.createItem(Material.OAK_DOOR,
+                    "<gradient:#43e97b:#38f9d7>+ Conceder: Acesso</gradient>",
+                    List.of(
+                            "<#78716C>Nível Básico de Entrada</#78716C>",
+                            "",
+                            "<#E2E8F0>Permite o jogador circular pela claim e</#E2E8F0>",
+                            "<#E2E8F0>utilizar portas, botões e alavancas.</#E2E8F0>",
+                            "",
+                            "<gradient:#ff416c:#ff4b2b>ⓘ Não libera baús ou construções.</gradient>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para selecionar este nível</gradient>"
+                    )
+            ));
 
-            inv.setItem(12, createGuiItem(Material.CHEST, "§6§lConceder: Containers", List.of(
-                    "§7Inclui Acesso e adiciona interação com",
-                    "§7baús, fornalhas, barris e recipientes.",
-                    "",
-                    "§cNão libera construção/destruição.",
-                    "§eClique para selecionar este nível"
-            )));
+            // Nível 2: Containers (Container)
+            inv.setItem(12, MenuHelper.createItem(Material.CHEST,
+                    "<gradient:#f7971e:#ffd200>+ Conceder: Recipientes</gradient>",
+                    List.of(
+                            "<#78716C>Nível de Armazenamento</#78716C>",
+                            "",
+                            "<#E2E8F0>Inclui Acesso e adiciona interação com</#E2E8F0>",
+                            "<#E2E8F0>baús, fornalhas, barris e dispensers.</#E2E8F0>",
+                            "",
+                            "<gradient:#ff416c:#ff4b2b>ⓘ Não libera colocar ou quebrar blocos.</gradient>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para selecionar este nível</gradient>"
+                    )
+            ));
 
-            inv.setItem(14, createGuiItem(Material.CRAFTING_TABLE, "§e§lConceder: Construção", List.of(
-                    "§7Inclui níveis anteriores e permite",
-                    "§7colocar e quebrar qualquer bloco.",
-                    "",
-                    "§cNão concede privilégio de gerenciamento.",
-                    "§eClique para selecionar este nível"
-            )));
+            // Nível 3: Construção (Build)
+            inv.setItem(14, MenuHelper.createItem(Material.CRAFTING_TABLE,
+                    "<gradient:#ffe259:#ffa751>+ Conceder: Construção</gradient>",
+                    List.of(
+                            "<#78716C>Nível de Construtor</#78716C>",
+                            "",
+                            "<#E2E8F0>Inclui níveis anteriores e permite</#E2E8F0>",
+                            "<#E2E8F0>colocar e destruir blocos livremente.</#E2E8F0>",
+                            "",
+                            "<gradient:#ff416c:#ff4b2b>ⓘ Não pode gerenciar outros membros.</gradient>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para selecionar este nível</gradient>"
+                    )
+            ));
 
-            inv.setItem(16, createGuiItem(Material.NETHER_STAR, "§c§lConceder: Gerenciar", List.of(
-                    "§7Inclui TODOS os níveis anteriores e",
-                    "§7permite gerenciar a confiança de outros.",
-                    "",
-                    "§c§lUse somente para pessoas de total confiança!",
-                    "§eClique para selecionar este nível"
-            )));
+            inv.setItem(16, MenuHelper.createItem(Material.NETHER_STAR,
+                    "<gradient:#ff416c:#ff4b2b>+ Conceder: Gerenciar</gradient>",
+                    List.of(
+                            "<#78716C>Acesso Total / Co-Dono</#78716C>",
+                            "",
+                            "<#E2E8F0>Inclui TODOS os privilégios anteriores e</#E2E8F0>",
+                            "<#E2E8F0>permite gerenciar a confiança de outros.</#E2E8F0>",
+                            "",
+                            "<gradient:#ff416c:#ff4b2b>ⓘ Use apenas com quem você confia 100%!</gradient>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para selecionar este nível</gradient>"
+                    )
+            ));
 
-            inv.setItem(22, ClaimMainMenu.createItem(Material.BARRIER, "§cVoltar", List.of("§7Retornar à lista de membros.")));
+            inv.setItem(22, MenuHelper.createItem(Material.ARROW,
+                    "<gradient:#ff416c:#ff4b2b>✦ Voltar</gradient>",
+                    List.of(
+                            "<#78716C>Lista de Membros</#78716C>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para retornar</gradient>"
+                    )
+            ));
 
             player.openInventory(inv);
         }, null);
-    }
-
-    private static ItemStack createGuiItem(Material mat, String name, List<String> lore) {
-        ItemStack item = new ItemStack(mat);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(name));
-        meta.lore(lore.stream().map(Component::text).toList());
-        item.setItemMeta(meta);
-        return item;
     }
 }

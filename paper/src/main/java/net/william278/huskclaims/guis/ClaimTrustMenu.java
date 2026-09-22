@@ -20,10 +20,8 @@
 package net.william278.huskclaims.guis;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
-import net.william278.huskclaims.guis.ClaimMainMenu;
 import net.william278.huskclaims.user.User;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -46,48 +44,55 @@ public class ClaimTrustMenu {
 
     public static void open(Plugin plugin, Player player, Claim claim, ClaimWorld claimWorld) {
         player.getScheduler().run(plugin, task -> {
-            Inventory inv = Bukkit.createInventory(null, 45, Component.text("Membros Confiados (Trustlist)", NamedTextColor.DARK_GRAY));
+            Inventory inv = Bukkit.createInventory(null, 45, MenuHelper.text("<gradient:#4facfe:#00f2fe>Membros Confiados » Pág. 1</gradient>"));
 
-            inv.setItem(4, ClaimMainMenu.createItem(Material.WRITABLE_BOOK, "§a§lAdicionar Confiança", List.of(
-                    "§7Conceda acesso a um novo amigo",
-                    "§7escolhendo o nível de permissão.",
-                    "",
-                    "§eClique para adicionar"
-            )));
+            inv.setItem(4, MenuHelper.createItem(Material.BEACON,
+                    "<gradient:#43e97b:#38f9d7>+ Nova Confiança</gradient>",
+                    List.of(
+                            "<#78716C>Conceder acesso a um amigo.</#78716C>",
+                            "",
+                            "<#E2E8F0>ⓘ Também pode usar <gradient:#f7971e:#ffd200>/trust <nome></gradient></#E2E8F0>",
+                            "<gradient:#43e97b:#38f9d7>▶ Clique para definir pelo chat</gradient>"
+                    )
+            ));
 
             NamespacedKey key = new NamespacedKey(plugin, TRUST_UUID_KEY);
             Map<UUID, String> trustedUsers = claim.getTrustedUsers();
 
             if (trustedUsers.isEmpty()) {
-                inv.setItem(22, ClaimMainMenu.createItem(Material.BARRIER, "§cNenhum amigo confiado", List.of(
-                        "§7Você ainda não deu permissão",
-                        "§7para nenhum jogador neste terreno."
-                )));
+                inv.setItem(22, MenuHelper.createItem(Material.BARRIER,
+                        "<#78716C>✦ Nenhum Membro Adicionado</#78716C>",
+                        List.of(
+                                "<#78716C>Lista Vazia</#78716C>",
+                                "",
+                                "<#E2E8F0>Você ainda não concedeu permissão</#E2E8F0>",
+                                "<#E2E8F0>a nenhum jogador neste terreno.</#E2E8F0>"
+                        )
+                ));
             } else {
                 int slot = 9;
                 for (Map.Entry<UUID, String> entry : trustedUsers.entrySet()) {
                     if (slot >= 36) break;
 
                     UUID targetUuid = entry.getKey();
-                    String trustLevelId = entry.getValue();
+                    String levelId = entry.getValue();
 
-                    OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetUuid);
+                    OfflinePlayer target = Bukkit.getOfflinePlayer(targetUuid);
                     String name = claimWorld.getUser(targetUuid)
                             .map(User::getName)
-                            .orElse(offlineTarget.getName() != null ? offlineTarget.getName() : "Desconhecido");
+                            .orElse(target.getName() != null ? target.getName() : "Desconhecido");
 
                     ItemStack head = new ItemStack(Material.PLAYER_HEAD);
                     SkullMeta meta = (SkullMeta) head.getItemMeta();
+                    meta.setOwningPlayer(target);
 
-                    meta.setOwningPlayer(offlineTarget);
-                    meta.displayName(Component.text("§e" + name));
-
-                    String formattedLevel = formatTrustLevel(trustLevelId);
-
+                    meta.displayName(MenuHelper.text("<gradient:#4facfe:#00f2fe>✦ " + name + "</gradient>"));
                     meta.lore(List.of(
-                            Component.text("§7Nível: " + formattedLevel),
+                            MenuHelper.text("<#78716C>Membro da Claim</#78716C>"),
                             Component.empty(),
-                            Component.text("§eClique para gerenciar")
+                            MenuHelper.text("<#E2E8F0>Nível de Acesso: " + formatTrustLevel(levelId)),
+                            Component.empty(),
+                            MenuHelper.text("<gradient:#f5af19:#f12711>▶ Clique para gerenciar</gradient>")
                     ));
 
                     meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, targetUuid.toString());
@@ -97,7 +102,14 @@ public class ClaimTrustMenu {
                 }
             }
 
-            inv.setItem(40, ClaimMainMenu.createItem(Material.ARROW, "§cVoltar", List.of("§7Retornar ao menu do terreno.")));
+            inv.setItem(40, MenuHelper.createItem(Material.ARROW,
+                    "<gradient:#ff416c:#ff4b2b>✦ Voltar</gradient>",
+                    List.of(
+                            "<#78716C>Menu Principal</#78716C>",
+                            "",
+                            "<gradient:#f5af19:#f12711>▶ Clique para retornar</gradient>"
+                    )
+            ));
 
             player.openInventory(inv);
         }, null);
@@ -105,11 +117,11 @@ public class ClaimTrustMenu {
 
     public static String formatTrustLevel(String levelId) {
         return switch (levelId.toLowerCase()) {
-            case "access" -> "§aAcesso";
-            case "container" -> "§6Containers";
-            case "build" -> "§eConstrução";
-            case "manage" -> "§cGerenciar";
-            default -> "§f" + levelId;
+            case "access" -> "<gradient:#43e97b:#38f9d7>Acesso</gradient>";
+            case "container" -> "<gradient:#f7971e:#ffd200>Containers</gradient>";
+            case "build" -> "<gradient:#ffe259:#ffa751>Construção</gradient>";
+            case "manage" -> "<gradient:#ff416c:#ff4b2b>Gerenciar</gradient>";
+            default -> "<white>" + levelId + "</white>";
         };
     }
 }
