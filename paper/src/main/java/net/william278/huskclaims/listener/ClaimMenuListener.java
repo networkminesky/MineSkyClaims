@@ -162,7 +162,7 @@ public class ClaimMenuListener implements Listener {
             if (rawSlot == 11) {
                 player.closeInventory();
                 MenuHelper.playDanger(player);
-                claimWorld.removeClaim(claim);
+                player.performCommand("abandonar");
                 player.sendMessage(MenuHelper.text("<#EF4444>✦ Você abandonou o seu terreno! Seus blocos foram devolvidos.</#EF4444>"));
             }
         }
